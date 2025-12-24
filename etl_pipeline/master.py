@@ -26,6 +26,4 @@ class Master:
         return self.dataframes.get(key)
     
     def setDataframes(self, key, df):
-        self.dataframes[key] = df
-
-    
+        self.dataframes[key] = df  

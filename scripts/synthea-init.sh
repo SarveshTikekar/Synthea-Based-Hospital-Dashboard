@@ -1,54 +1,55 @@
 #!/bin/bash
-set -e  # exit on error
+set -e
 
-NUMBER_OF_PATIENTS=${1:-2000}
-
-# --- Initialize paths ---
+# --- Configuration ---
+NUMBER_OF_PATIENTS=${1:-150}
 PROJ_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-echo "📁 Project Directory: $PROJ_DIR"
-
 REPO_URL="https://github.com/synthetichealth/synthea.git"
 SYNTHEA_DIR="$HOME/synthea"
 DATASET_DIR="$PROJ_DIR/Datasets"
+LOG_FILE="$PROJ_DIR/synthea_generation.log"
 
-# --- Clone or update Synthea ---
+# --- Function for Logging ---
+log_msg() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
+}
+
+log_msg "🚀 Starting Synthea Data Generation for $NUMBER_OF_PATIENTS patients..."
+
+# --- 1. Clone/Update Logic ---
 if [ ! -d "$SYNTHEA_DIR" ]; then
-    echo "🔄 Cloning Synthea repository into $SYNTHEA_DIR..."
+    log_msg "🔄 Synthea not found. Cloning repository..."
     git clone "$REPO_URL" "$SYNTHEA_DIR"
+    FIRST_RUN=true
 else
-    echo "📦 Synthea repo already exists. Pulling latest changes..."
-    cd "$SYNTHEA_DIR" || exit
-    git pull
+    log_msg "✅ Synthea repo found at $SYNTHEA_DIR."
+    FIRST_RUN=false
 fi
 
-# --- Ensure CSV export is enabled ---
+# --- 2. Build & Configure (Only on First Run) ---
 PROPERTIES_FILE="$SYNTHEA_DIR/src/main/resources/synthea.properties"
-echo "⚙️  Configuring Synthea for CSV export..."
 
-# Make sure the properties file exists
-if [ ! -f "$PROPERTIES_FILE" ]; then
-    echo "❌ ERROR: synthea.properties not found in $PROPERTIES_FILE"
-    exit 1
+if [ "$FIRST_RUN" = true ]; then
+    log_msg "⚙️  Configuring synthea.properties (One-time setup)..."
+    
+    # Enable CSV, Append Mode, and set Output Directory
+    sed -i 's/^exporter.fhir.export *= *.*/exporter.fhir.export = true/' "$PROPERTIES_FILE"
+    sed -i 's/^exporter.csv.export *= *.*/exporter.csv.export = true/' "$PROPERTIES_FILE"
+    sed -i 's/^exporter.csv.append_mode *= *.*/exporter.csv.append_mode = true/' "$PROPERTIES_FILE"
+    sed -i "s|^exporter.baseDirectory *= *.*|exporter.baseDirectory = $DATASET_DIR|" "$PROPERTIES_FILE"
+    
+    cd "$SYNTHEA_DIR"
+    log_msg "🔨 Building Synthea (skipping tests for speed)..."
+    ./gradlew build -x test
+else
+    log_msg "⏩ Skipping build (already built previously)."
 fi
 
-# Modify export settings using sed
-sed -i 's/^exporter.fhir.export *= *.*/exporter.fhir.export = true/' "$PROPERTIES_FILE"
-sed -i 's/^exporter.csv.export *= *.*/exporter.csv.export = true/' "$PROPERTIES_FILE"
-sed -i 's/^exporter.csv.append_mode *= *.*/exporter.csv.append_mode = true/' "$PROPERTIES_FILE"
-sed -i "s|^exporter.baseDirectory *= *.*|exporter.baseDirectory = $DATASET_DIR|" "$PROPERTIES_FILE"
-
-# --- Ensure output directory exists ---
+# --- 3. Execute Generation ---
 mkdir -p "$DATASET_DIR"
+cd "$SYNTHEA_DIR"
 
-# --- Generate CSV data ---
-cd "$SYNTHEA_DIR" || exit
+log_msg "🏃 Executing Synthea..."
+./run_synthea -p "$NUMBER_OF_PATIENTS" | tee -a "$LOG_FILE"
 
-# -- doing a clean build to ensure everything is up to date --
-./gradlew build 
-
-# --- synthea stores the o/p under the csv dir if above options are set --- 
-echo "🚀 Generating CSV data for 2000 patients..."
-./run_synthea -p "$NUMBER_OF_PATIENTS"
-
-# cp output/csv/* "$DATASET_DIR"
-echo "✅ CSV datasets generated in: $DATASET_DIR"
+log_msg "✅ Success! Data generated in: $DATASET_DIR"

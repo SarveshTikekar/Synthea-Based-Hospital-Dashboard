@@ -40,18 +40,52 @@ def get_patients():
     except Exception as e:
         return jsonify({'error': f'Failed to retrieve patients: {str(e)}'}), 500
 
+@app.route('/get_patient_count', methods=['GET'])
+def get_patient_count():
 
+    try:
+        patients_singleton.etl()
+        data = main_singleton.getDataframes("patients")
+        if data is None:
+            print("Data is None", sep='\n')
+            return jsonify({
+                "status": 500,
+                "message": "No patient data found"
+            })
+
+        else:
+            patient_count = data.count()
+            print(f"Patient count is: {patient_count}", sep='\n')
+            return jsonify({
+            
+                'status': 200,
+                'patient_count': patient_count,
+                'message': 'Patient count is returned successfully'
+            })
+
+    except Exception as e:
+        print("Exception occured!", sep='\n')
+        return jsonify({
+            "status": 404,
+            "error": str(e)
+        })
 @app.route('/generate_data/<int:num_patients>', methods=['GET'])
 def generate_data(num_patients):
     """
     Trigger Synthea script to generate new synthetic patient data.
     """
     try:
-        script = 'synthea-init.sh'
-        path = '../scripts'
+        path = os.path.dirname(os.path.abspath(__file__))
+        script_dir = os.path.join(path, "..", "scripts", "synthea-init.sh")
+
+        if not os.path.exists(script_dir):
+            return jsonify({
+                "status": "error",
+                "message": f"Synthea script not found at {script_dir}"
+            }), 404
 
         result = subprocess.run(
-            [f"./{script}", f"{num_patients}"],
+            [script_dir, str(num_patients)],
             cwd=path,
             capture_output=True,
             text=True,
@@ -166,7 +200,7 @@ def procedures_dashboard_data():
                 'data': None,
                 'code': 201
             }
-    except Exception as e:
+    except Exception as e: 
         return jsonify({
             'api-status': 'Exception caused',
             'error': str(e)
