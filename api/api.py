@@ -1,9 +1,8 @@
 import sys
 import os
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify
 from flask_cors import CORS
 import subprocess
-import pandas as pd
 import json
 
 # Ensuring the project root (one level up) is in sys.path
@@ -44,8 +43,7 @@ def get_patients():
 def get_patient_count():
 
     try:
-        patients_singleton.etl()
-        data = main_singleton.getDataframes("patients")
+        data = patients_singleton.get_patients()
         if data is None:
             print("Data is None", sep='\n')
             return jsonify({

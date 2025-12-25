@@ -1,33 +1,50 @@
-# -- Will be implemented later ---
+from pyspark.sql.functions import col, to_date, regexp_extract, initcap
+from etl_pipeline.master import Master
+import os
 
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, upper, trim, to_date, when
+class AllergiesETL:
 
-def extract():
-    allergies_spark = SparkSession.builder.appName("Allergies-ETL").config("spark.driver.memory", "512m").getOrCreate()
-    allergies_data = "../../Datasets/csv/allergies.csv"
-    return allergies_spark, allergies_data
+    def __init__(self) -> None:
+        self.master = Master()
+        self.etl()
 
-def transform(allergies_spark, allergies_data):
-    df = allergies_spark.read.csv(path=allergies_data, header=True, inferSchema=True)
-    print("Data is loaded")
+    def etl(self):
+        """
+        Load the transformed conditions DataFrame from CSV if not already loaded.
+        """
 
-    new_cols_list=["allergy_first_found", "_", "uuid", "urn_uuid", "allergies", "_", "", "type", "medium", ""]
+        path=os.path.join(os.path.dirname(__file__), "..", "Datasets", "csv", "allergies.csv")
+        df = self.master._master_spark.read.csv(path, header=True, inferSchema=True)
 
-    old_cols = df.columns
+        new_cols = ['recorded_date', '_', 'uuid', 'encounter_id', 'causative_agent_id', 'code_system', 'causative_agent', 'agent_aim', 'agent_class', 'primary_reaction_id', 'primary_reaction', 'primary_reaction_severity', 'symptom_id', 'symptom_observed', 'symptom_severity']
 
-    for old_col, new_col in zip(old_cols, new_cols_list):
-        df = df.withColumnRenamed(old_col, new_col)
+        for old_col, new_col in zip(df.columns, new_cols):
+            df = df.withColumnRenamed(old_col, new_col)
 
+        # Drop placeholder columns
+        df = df.drop(*[col for col in df.columns if col.startswith('_')])
+
+        # Convert date columns to proper date format
+        df = df.withColumn("recorded_date", to_date(col("recorded_date"), "yyyy-MM-dd"))
+
+        #Capitalize first letter for all severities
+        df = df.withColumn("primary_reaction_severity", initcap("primary_reaction_severity")) \
+        .withColumn("symptom_severity", initcap("symptom_severity"))
+        
+        #Cast all reaction and symptom ids into int
+
+        df = df.withColumn("primary_reaction_id", col("primary_reaction_id").cast("int")) \
+        .withColumn("symptom_id", col("symptom_id").cast("int"))
+
+        # Store in singleton
+        self.master.setDataframes("allergies", df)
     
-    df = df.drop(*[col for col in df.columns if col.startswith('_')])
+    def getDf(self):
+        return self.master.getDataframes("allergies")
 
-    print(df.show(5))
-    print(df.columns)
-
-def load():
-    pass
-
+# Optional: Standalone execution
 if __name__ == "__main__":
-    spark_obj, path = extract()
-    transform(spark_obj, path)
+    allergies_etl = AllergiesETL()
+    df_proc = allergies_etl.getDf() 
+    df_proc.show(15)
+    print(f"Columns are:{df_proc.columns}")

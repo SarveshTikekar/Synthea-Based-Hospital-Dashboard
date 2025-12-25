@@ -29,7 +29,7 @@ def count_patients():
     return int(resp["patient_count"])
 
 #Define a var for prev patient count
-prev_pat_count = count_patients()
+st.session_state["prev_pat_count"] = count_patients()
 num_of_patients_generated = 0
 
 def handle_generation(num_patients):
@@ -42,6 +42,8 @@ def handle_generation(num_patients):
             response = requests.get(f"{API_URL}/generate_data/{num_patients}")
             
             if response.status_code == 200:
+
+                global num_of_patients_generated
                 data = response.json()
                 st.session_state['api_success'] = True
                 st.session_state['api_output'] = data.get('stdout', '')
@@ -186,7 +188,12 @@ def run_data_generation_page():
         m_col1, m_col2 = st.columns(2)
         m_col3, m_col4 = st.columns(2)
         with m_col1:
-            st.metric("Total Patients", f"{prev_pat_count + num_of_patients_generated}", f"{int(((prev_pat_count + num_of_patients_generated)/prev_pat_count) * 100) if prev_pat_count !=0 else 0}%")
+
+            if "prev_pat_count" in st.session_state:
+                prev_pat_count = st.session_state["prev_pat_count"]
+                st.metric("Total Patients", f"{prev_pat_count + num_of_patients_generated}", f"{int(((prev_pat_count + num_of_patients_generated)/prev_pat_count) * 100) - 100 if prev_pat_count !=0 else 0}%")
+                st.session_state["prev_pat_count"] += num_of_patients_generated
+
         with m_col2:
             st.metric("Procedures Completed", "38,240", "5%")
         with m_col3:
