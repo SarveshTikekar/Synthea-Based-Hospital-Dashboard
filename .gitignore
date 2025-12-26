@@ -208,3 +208,6 @@ __marimo__/
 
 #Datasets
 Datasets/
+
+#For node modules
+*/node_modules
