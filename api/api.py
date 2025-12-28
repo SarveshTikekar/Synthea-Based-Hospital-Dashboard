@@ -1,3 +1,6 @@
+#API endpoints (Utilities to be put in utilities.py)
+
+from api import utilities
 import sys
 import os
 from flask import Flask, jsonify
