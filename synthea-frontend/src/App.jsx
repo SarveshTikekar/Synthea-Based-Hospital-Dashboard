@@ -3,6 +3,7 @@ import './App.css'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import Homepage from './pages/Homepage';
 import MainDashboard from './pages/MainDashboard';
+import DataGeneration from './pages/DataGeneration';
 
 const router = createBrowserRouter([
 	
@@ -15,6 +16,12 @@ const router = createBrowserRouter([
 		path:"/Dashboard",
 		element: <MainDashboard/>
 	},
+	
+	{
+		path: "/DataGeneration",
+		element: <DataGeneration/>
+	},
+
 ])
 
 function App(){
