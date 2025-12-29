@@ -1,9 +1,5 @@
 @import "tailwindcss";
 
-/* v4 Specific Fix: 
-  Force the app to fill the browser window. 
-  Without this, 'min-h-screen' might fail inside nested divs.
-*/
 @layer base {
   html, body, #root {
     height: 100%;
@@ -13,8 +9,8 @@
   }
 
   body {
-    background-color: var(--color-slate-50); /* v4 uses CSS variables for theme colors */
-    color: var(--color-slate-900);
+    background-color: #f8fafc; /* gray-50 */
+    color: #0f172a; /* slate-900 */
     font-family: 'Inter', sans-serif;
   }
 }

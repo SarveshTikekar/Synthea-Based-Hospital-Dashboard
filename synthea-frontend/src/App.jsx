@@ -1,34 +1,22 @@
-import { Heading1 } from 'lucide-react'
-import './App.css'
+import './App.css';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import Homepage from './pages/Homepage';
 import MainDashboard from './pages/MainDashboard';
 import DataGeneration from './pages/DataGeneration';
 
 const router = createBrowserRouter([
-	
-	{
-		path: "/Homepage",
-		element: <Homepage/>
-	},
-	{
-		
-		path:"/Dashboard",
-		element: <MainDashboard/>
-	},
-	
-	{
-		path: "/DataGeneration",
-		element: <DataGeneration/>
-	},
+  { path: "/", element: <Homepage /> },
+  { path: "/dashboard", element: <MainDashboard /> },
+  { path: "/datageneration", element: <DataGeneration /> },
+]);
 
-])
-
-function App(){
-
-	return (
-	
-		<RouterProvider router={router}/>
-	)
+function App() {
+  return (
+    // w-full ensures it takes full browser width, min-h-screen ensures full height
+    <div className="w-full h-screen bg-gray-50 overflow-hidden">
+      <RouterProvider router={router} />
+    </div>
+  );
 }
-export default App
+
+export default App;

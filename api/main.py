@@ -3,7 +3,7 @@
 from api import utilities
 import sys
 import os
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 import subprocess
 import json
@@ -70,12 +70,13 @@ def get_patient_count():
             "status": 404,
             "error": str(e)
         })
-@app.route('/generate_data/<int:num_patients>', methods=['GET'])
-def generate_data(num_patients):
+@app.route('/generate_data/', methods=['GET'])
+def generate_data():
     """
     Trigger Synthea script to generate new synthetic patient data.
     """
     try:
+        num_patients = request.args.get('num_patients', type=int)
         path = os.path.dirname(os.path.abspath(__file__))
         script_dir = os.path.join(path, "..", "scripts", "synthea-init.sh")
 
