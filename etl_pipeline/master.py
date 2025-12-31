@@ -16,14 +16,38 @@ class Master:
         return cls._instance
     
     def __init_spark(self):
-        self._master_spark = SparkSession.builder.appName("Hospital-ETL").config("spark.driver.memory", "4g").getOrCreate()
+        self._master_spark = SparkSession.builder.appName("Hospital-ETL").master("local[2]").config("spark.driver.memory", "4g").config("spark.hadoop.fs.defaultFS", "file:///").getOrCreate()
     
     def __detach_spark(self):
         self._master_spark.stop()
         self._master_spark = None
     
     def getDataframes(self, key):
-        return self.dataframes.get(key)
+        return self.dataframes.get(key, {}).get("dataframe")
     
     def setDataframes(self, key, df):
-        self.dataframes[key] = df  
+
+        if key not in self.dataframes:
+            self.dataframes[key] = {}
+
+        self.dataframes[key]["dataframe"] = df
+
+    def setKPIS(self, key, kpis):
+
+        if key not in self.dataframes:
+            self.dataframes[key] = {}
+
+        self.dataframes[key]["kpis"] = kpis
+
+    def getKPIS(self, key):
+        return self.dataframes.get(key, {}).get("kpis")
+
+    def setMetrics(self, key, metrics):
+        if key not in self.dataframes:
+            self.dataframes[key] = {}
+
+        self.dataframes[key]["metrics"] = metrics
+
+    def getMetrics(self, key):
+         return self.dataframes.get(key, {}).get("metrics")
+       
