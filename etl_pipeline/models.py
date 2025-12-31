@@ -14,3 +14,16 @@ class patientMetrics(BaseModel):
     mortality_rate: float = 0
     age_wealth_correlation: float = 0
     income_inequality_index: float = 0
+
+
+class conditionKPIS(BaseModel):
+    current_active_burden: int = 0
+    global_recovery_rate: float = Field(0, description="Percentage of conditions that have been completely treated")
+    patient_complexity_score: int = Field(0, description="Average number of conditions per patient")
+    average_time_to_cure: int = Field(0, description="Average time (in days) taken to completely treat a condition")
+    admission_rate_last_30_days: int = Field(0, description="Number of admissions in the last 30 days related to conditions")
+    admission_rate_last_60_days: int = Field(0, description="Number of admissions in the last 60 days related to conditions")
+
+     
+class conditionMetrics(BaseModel):
+    pass

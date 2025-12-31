@@ -114,13 +114,11 @@ class PatientsETL:
         y_mean = averages.mean_fi 
         
         denom_term_1, denom_term_2 = df.agg( sum ((col("age") - x_mean) ** 2) ).first()[0], df.agg( sum ((col("family_income") - y_mean) ** 2) ).first()[0] 
-
         corr_coeff = df.agg( sum((col("age") - x_mean) * (col("family_income") - y_mean)) ).first()[0] / ((denom_term_1 * denom_term_2) ** 0.5)
 
         #Metric 5 Income inequality index (Gini coefficient) using Lorenz curve
 
         df = df.withColumn("income_ranking", dense_rank().over(window=Window.orderBy(col("family_income"))))
- 
         gini_coeff = float((2 * df.agg(sum(col("family_income") * col("income_ranking"))).first()[0]/(df.agg(sum(col("family_income"))).first()[0] * df.count()))- ((df.count() + 1)/df.count()))
 
         self.master.setMetrics("patients", patientMetrics(economic_dependence_ratio = econ_dep_ratio, cultural_diversity_score = cult_div_score, mortality_rate = mort_rate, age_wealth_correlation=corr_coeff, income_inequality_index=gini_coeff))
