@@ -1,5 +1,6 @@
 # patients_etl.py
-from pyspark.sql.functions import col, when, split, to_date, isnull, mean, percentile_approx, current_date, datediff, coalesce, sum
+from pyspark.sql.functions import col, when, split, to_date, isnull, mean, percentile_approx, current_date, datediff, coalesce, sum, dense_rank
+from pyspark.sql import Window
 from etl_pipeline.master import Master
 import re
 import os
@@ -101,9 +102,8 @@ class PatientsETL:
 
         cult_div_score = int((1 - race_df.agg(sum("enhanced_count")).first()[0]) * 100)
 
-        deaths = df.filter(col("death_date").isNotNull()).select(col("death_date")).count()
-
         #Metric-3 Mortality_rate
+        deaths = df.filter(col("death_date").isNotNull()).select(col("death_date")).count()
         mort_rate = deaths / df.count() * 100
         
         #Metric-4 Age-wealth correlation, age is x-ax and wealth is y-ax
@@ -117,7 +117,13 @@ class PatientsETL:
 
         corr_coeff = df.agg( sum((col("age") - x_mean) * (col("family_income") - y_mean)) ).first()[0] / ((denom_term_1 * denom_term_2) ** 0.5)
 
-        self.master.setMetrics("patients", patientMetrics(economic_dependence_ratio = econ_dep_ratio, cultural_diversity_score = cult_div_score, mortality_rate = mort_rate, age_wealth_correlation=corr_coeff))
+        #Metric 5 Income inequality index (Gini coefficient) using Lorenz curve
+
+        df = df.withColumn("income_ranking", dense_rank().over(window=Window.orderBy(col("family_income"))))
+ 
+        gini_coeff = float((2 * df.agg(sum(col("family_income") * col("income_ranking"))).first()[0]/(df.agg(sum(col("family_income"))).first()[0] * df.count()))- ((df.count() + 1)/df.count()))
+
+        self.master.setMetrics("patients", patientMetrics(economic_dependence_ratio = econ_dep_ratio, cultural_diversity_score = cult_div_score, mortality_rate = mort_rate, age_wealth_correlation=corr_coeff, income_inequality_index=gini_coeff))
 
          
 # Optional: Standalone execution
