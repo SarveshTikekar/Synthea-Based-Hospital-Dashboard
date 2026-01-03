@@ -1,7 +1,7 @@
 from pyspark.sql.functions import col, to_date, regexp_extract, initcap
 from etl_pipeline.master import Master
 import os
-
+from .models.allergies import allergyKPIS, allergyMetrics
 class AllergiesETL:
 
     def __init__(self) -> None:
@@ -41,6 +41,20 @@ class AllergiesETL:
     
     def getDf(self):
         return self.master.getDataframes("allergies")
+    
+    def calculateKPIS(self):
+
+        #KPI-1 total_allergic_population
+        df = self.master.getDataframes("allergies")
+
+        total_allergic_population = 0
+        self.master.setKPIS("allergies", allergyKPIS())
+        pass
+
+    def calculateMetrics(self):
+
+        self.master.setMetrics("allergies", allergyMetrics())
+        pass
 
 # Optional: Standalone execution
 if __name__ == "__main__":

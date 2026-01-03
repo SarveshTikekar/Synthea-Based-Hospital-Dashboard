@@ -4,7 +4,7 @@ from pyspark.sql import Window
 from etl_pipeline.master import Master
 import re
 import os
-from .models import patientKPIS, patientMetrics
+from .models.patients import patientKPIS, patientMetrics
 
 class PatientsETL:
     def __init__(self):

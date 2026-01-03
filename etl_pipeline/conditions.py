@@ -1,16 +1,17 @@
 # conditions_etl.py
-from pyspark.sql.functions import col, to_date, regexp_extract, isnull, mean, countDistinct, sum, coalesce, current_date, datediff, avg, when, date_sub
+from pyspark.sql.functions import col, to_date, regexp_extract, isnull, mean, countDistinct, sum, coalesce, current_date, datediff, avg, when, date_sub, count, trim, floor
 from etl_pipeline.master import Master
 import os
 import math
-from .models import conditionKPIS
+from .models.conditions import conditionKPIS, conditionMetrics
+ 
 class ConditionsETL:
 
     def __init__(self) -> None:
         self.master = Master()
         self.etl()
         self.calculateKPIS()
-        #self.calculateMetrics()
+        self.calculateMetrics()
 
     def etl(self):
         """
@@ -34,7 +35,10 @@ class ConditionsETL:
 
         # Extract event type from description and drop the fsn column
         df = df.withColumn("medical_concepts", regexp_extract(col("fsn"), r"^(.*?)\(", 1)) \
-               .withColumn("associated_semantics", regexp_extract(col("fsn"), r"\((.*?)\)$", 1)).drop("fsn")
+               .withColumn("associated_semantics", regexp_extract(col("fsn"), r"\((.*?)\)$", 1)).drop("fsn") 
+               
+        df = df.withColumn("medical_concepts", trim(col("medical_concepts"))) \
+               .withColumn("associated_semantics", trim(col("associated_semantics")))
 
         # Store in singleton
         self.master.setDataframes("conditions", df)
@@ -83,8 +87,71 @@ class ConditionsETL:
             
         self.master.setKPIS("conditions", conditionKPIS(current_active_burden=curr_act_burd, global_recovery_rate=glob_reco_rate, patient_complexity_score=pat_comp_score, average_time_to_cure=avg_time_cure, admission_rate_last_30_days=adm_30, admission_rate_last_60_days=adm_60))
     
+
     def calculateMetrics(self):
-        self.master.setMetrics("conditions", )
+
+        #Metric-1 Top 5 disorder conditions by prevalence
+        df = self.master.getDataframes("conditions")
+        collection = df.filter((col("associated_semantics") == "disorder") & (col("date_of_abetment").isNull())) \
+                            .groupBy("medical_concepts") \
+                            .agg(count(col("uuid")).alias("dis_count")) \
+                            .orderBy(col("dis_count").desc()) \
+                            .limit(5).collect()
+        
+        collection2 = [row.asDict() for row in collection]
+        top_5_live_disorders = [{item["medical_concepts"]: item["dis_count"]} for item in collection2]
+
+        #Metric-2 Chronic vs Acute condition comparison
+        collection = df.filter((col("associated_semantics") == "disorder") & (col("date_of_abetment").isNull())) \
+                    .withColumn("clinical_course", when(col("condition_record_date") >= date_sub(current_date(), 90), "chronic").otherwise("acute")) \
+                    .groupBy("clinical_course") \
+                    .agg(count(col("uuid")).alias("ca_count")).collect()
+        
+        collection2 = [row.asDict() for row in collection]
+        chron_vs_ac = [{item['clinical_course']: item['ca_count'] for item in collection2}]
+
+        #Metric-3 Disease resolution efficiency
+
+        collection = df.filter((col("associated_semantics") == "disorder") & (col("date_of_abetment").isNotNull())) \
+                        .withColumn("days_for_treatment", datediff(col("date_of_abetment"), col("condition_record_date")))\
+                        .groupBy("medical_concepts").agg(
+
+                            count(col("uuid")).alias("frequency"),
+                            avg(col("days_for_treatment")).alias("avg_time_to_cure")
+                        ).withColumn("avg_time_to_cure", floor(col("avg_time_to_cure"))) \
+                        .withColumn("avg_time_to_cure", when(col("avg_time_to_cure") == 0, 1).otherwise(col("avg_time_to_cure"))) \
+                        .orderBy(col("avg_time_to_cure").asc(), col("frequency").desc()).limit(20).rdd.map(tuple).collect()
+        
+        disease_resolution_top_20 = [(item[0], item[1], item[2]) for item in collection]
+
+        #Metric-4 Top 10 recurring disorders
+
+        collection = df.filter((col("associated_semantics") == "disorder")) \
+                        .groupBy("uuid", "medical_concepts") \
+                        .agg(
+                            
+                            count("*").alias("rec_count")
+                        ).filter(col("rec_count") > 1) \
+                        .groupBy("medical_concepts") \
+                        .agg(count(col("uuid")).alias("total_recurring")) \
+                        .orderBy(col("total_recurring").desc()).limit(10).collect()
+        collection2 = [row.asDict() for row in collection]
+        top_10_recurr_disorders = [{item["medical_concepts"]: item["total_recurring"]} for item in collection2]
+
+        #Metric-5 Comorbidity pattern: Frequency of patients with multiple co-occurring conditions
+
+        collection = df.filter((col("associated_semantics") == "disorder") & (col("date_of_abetment").isNull())) \
+                        .groupBy("uuid").agg(
+
+                            count(col("medical_concepts")).alias("con_count")
+                        ).groupBy("con_count") \
+                        .agg(count(col("uuid")).alias("c2")) \
+                        .orderBy(col("con_count").asc()).collect()
+        
+        collection2 = [row.asDict() for row in collection]
+        commor_pattern = [{item['con_count']: item['c2'] for item in collection2}]
+
+        self.master.setMetrics("conditions",conditionMetrics(top_disorder_conditions=top_5_live_disorders, chronic_vs_acute=chron_vs_ac, disease_resolution_efficiency=disease_resolution_top_20, top_10_recurring_disorders=top_10_recurr_disorders, commorbidity_pattern=commor_pattern))
         
 
 # Optional: Standalone execution
@@ -93,4 +160,5 @@ if __name__ == "__main__":
     df_proc = conditions_etl.getDf()
     df_proc.show(25)
     print(conditions_etl.master.getKPIS("conditions"))
+    print(conditions_etl.master.getMetrics("conditions"))
     print("Columns:", df_proc.columns)

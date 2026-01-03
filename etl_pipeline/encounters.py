@@ -30,7 +30,7 @@ class EncountersETL:
         df = df.withColumn("visit_end", date_format(to_timestamp(col("visit_end")) + expr("INTERVAL 5 HOURS 30 MINUTES"), "yyyy-MM-dd'T'HH:mm:ss'Z'"))
 
         #Typecast ids to proper int
-        df = df.withColumn("diagnosis_id", col("diagnosis_id").cast("int")
+        df = df.withColumn("diagnosis_id", col("diagnosis_id").cast("int"))
 
         # Store in singleton
         self.master.setDataframes("encounters", df)
