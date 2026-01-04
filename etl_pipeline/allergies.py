@@ -1,4 +1,5 @@
-from pyspark.sql.functions import col, to_date, regexp_extract, initcap
+from pyspark.sql.functions import col, to_date, regexp_extract, initcap, count, sum, avg, isnull, isnotnull, transform
+from pyspark.sql import Window
 from etl_pipeline.master import Master
 import os
 from .models.allergies import allergyKPIS, allergyMetrics
@@ -7,6 +8,8 @@ class AllergiesETL:
     def __init__(self) -> None:
         self.master = Master()
         self.etl()
+        self.calculateKPIS()
+        self.calculateMetrics()
 
     def etl(self):
         """
@@ -47,13 +50,48 @@ class AllergiesETL:
         #KPI-1 total_allergic_population
         df = self.master.getDataframes("allergies")
 
-        total_allergic_population = 0
-        self.master.setKPIS("allergies", allergyKPIS())
-        pass
+        total_allergic_pop = df.select(col("uuid")).distinct().count()
+
+        #KPI-2 Severe anaphylactic risk rate
+        severe_anaphylatic_risk_rate = float((df.filter(col("primary_reaction_severity") == "Severe").count() / df.count()) * 100)
+
+        #KPI-3 Drug hypersenitivity burden
+        drug_hyp_burden = float((df.filter(col("code_system") == "RxNorm").count() / df.count()) * 100)
+
+        #KPI-4 Poly allergen patient rate
+        poly_allg_rate = float((df.groupBy("uuid").agg(
+            count("*").alias("c1")
+        ).filter(col("c1") >= 2).count() / df.select(col("uuid")).distinct().count() ) * 100)
+
+        #KPI-5 Allergy risk stratification
+
+        allg_rsk_strat = list(map(lambda x: (x[0], x[1], x[2]),
+                                  df.filter((col("agent_class").isNotNull()) & (col("primary_reaction_severity").isNotNull())).groupBy("agent_class", "primary_reaction_severity").agg(
+
+            count("*").alias("patient_count")
+        ).rdd.map(tuple).collect()))
+
+        self.master.setKPIS("allergies", allergyKPIS(total_allergic_population=total_allergic_pop, severe_anaphylactic_risk_rate=severe_anaphylatic_risk_rate, drug_hypersensitivity_rate= drug_hyp_burden, 
+        poly_allergen_patient_rate=poly_allg_rate, allergy_risk_stratification=allg_rsk_strat))
+        
 
     def calculateMetrics(self):
 
-        self.master.setMetrics("allergies", allergyMetrics())
+        df = self.master.getDataframes("allergies")
+
+        #KPI-1 Top 10 causative agents
+        top_10_causative_agents =  list(map(lambda x: {x[0]: x[1]}, df.groupBy("causative_agent").agg(
+
+            count("*").alias("ca_count")
+        ).orderBy(col("ca_count").desc()).limit(10).collect()))
+
+        #KPI-2 Severity Distribution
+        sever_distrib = list(map(lambda x: {x[0]: x[1]},df.filter(col("primary_reaction_severity").isNotNull()).groupBy("primary_reaction_severity").agg(count("*").alias("s_count")).collect()))
+
+        #KPI-3  Allergen Distribution Breakdown
+        allg_class_breakdown = list(map(lambda x: {x[0]: x[1]},df.filter(col("agent_class").isNotNull()).groupBy("agent_class").agg(count("*").alias("s_count")).collect()))
+
+        self.master.setMetrics("allergies", allergyMetrics(top_10_causative_agents=top_10_causative_agents, severity_distribution=sever_distrib,allergy_discovery_trends=allg_class_breakdown))
         pass
 
 # Optional: Standalone execution
@@ -62,3 +100,5 @@ if __name__ == "__main__":
     df_proc = allergies_etl.getDf() 
     df_proc.show(15)
     print(f"Columns are:{df_proc.columns}")
+    print(allergies_etl.master.getKPIS("allergies"))
+    print(allergies_etl.master.getMetrics("allergies"))
