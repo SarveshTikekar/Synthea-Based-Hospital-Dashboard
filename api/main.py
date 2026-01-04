@@ -1,5 +1,6 @@
 #API endpoints (Utilities to be put in utilities.py)
 
+from logging import raiseExceptions
 from api import utilities
 import sys
 import os
@@ -7,6 +8,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 import subprocess
 import json
+
 
 # Ensuring the project root (one level up) is in sys.path
 project_root = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
@@ -149,65 +151,36 @@ def quick_dashboard_data():
             "code": 500
         }), 500
 
-@app.route('/conditions_dashboard', methods=['GET'])
-def conditions_dashboard_data():
-    data = -1
-    if main_singleton.getDataframes("conditions") is not None:
-        data = main_singleton.getDataframes("conditions")
-    else:
-        conditions_singleton.etl()
-        data = main_singleton.getDataframes("conditions")
 
+#Dashboard for patients
+@app.route('/patient_dashboard', methods=['GET'])
+def patient_dashboard():
     try:
-        if data is not None:
-            data_json = [row.asDict() for row in data.collect()]
-            return {
-                'api-status': 'success',
-                'data': data_json,
-                'code': 200
-            }
-        else:
-            return {
-                'api-status': 'failure',
-                'data': None,
-                'code': 201
-            }
+        patient_data = [main_singleton.getKPIS("patients"), main_singleton.getMetrics("patients")]
+
+        if patient_data is None:
+            return jsonify({'message': 'Data not found'}), 404
+        
+        return jsonify({'message': 'Data Loaded successfully', 
+                        'kpis': patient_data[0].model_dump(), 'metrics': patient_data[1].model_dump()})
+
     except Exception as e:
-        return jsonify({
-            'api-status': 'Exception caused',
-            'error': str(e)
-        }), 500
-    
+        return jsonify({'error': str(e)}), 400
+        
 
-@app.route('/procedures_dashboard', methods=['GET'])
-def procedures_dashboard_data():
-    data = -1
-    if main_singleton.getDataframes("procedures") is not None:
-        data = main_singleton.getDataframes("procedures")
-    else:
-        procedures_singleton.etl()
-        data = main_singleton.getDataframes("procedures")
-
+@app.route('/conditions_dashboard', methods=['GET'])
+def conditions_dashboard():
     try:
-        if data is not None:
-            data_json = [row.asDict() for row in data.collect()]
-            return {
-                'api-status': 'success',
-                'data': data_json,
-                'code': 200
-            }
-        else:
-            return {
-                'api-status': 'failure',
-                'data': None,
-                'code': 201
-            }
-    except Exception as e: 
-        return jsonify({
-            'api-status': 'Exception caused',
-            'error': str(e)
-        }), 500
+        conditions_data = [main_singleton.getKPIS("conditions"), main_singleton.getMetrics("conditions")]
 
+        if conditions_data is None:
+            return jsonify({'message': 'Data not found'}), 404
+        
+        return jsonify({'message': 'Data Loaded successfully', 
+                        'kpis': conditions_data[0].model_dump(), 'metrics': conditions_data[1].model_dump()})
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
 
 # --- MAIN ENTRY POINT ---
 if __name__ == '__main__':
