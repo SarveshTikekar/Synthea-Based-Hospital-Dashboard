@@ -16,12 +16,11 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 # Importing singletons (ensure these paths are correct)
-from utilities import (
-    main_singleton,
-    patients_singleton,
-    conditions_singleton,
-    procedures_singleton,
-)
+from utilities import main_singleton
+from etl_pipeline.patients import PatientsETL
+from etl_pipeline.conditions import ConditionsETL
+from etl_pipeline.procedures import ProceduresETL
+from etl_pipeline.allergies import AllergiesETL
 
 # --- Flask App Initialization ---
 app = Flask(__name__)
@@ -156,6 +155,9 @@ def quick_dashboard_data():
 @app.route('/patient_dashboard', methods=['GET'])
 def patient_dashboard():
     try:
+        if main_singleton.getDataframes("patients") is None:
+            patient_obj = PatientsETL()
+
         patient_data = [main_singleton.getKPIS("patients"), main_singleton.getMetrics("patients")]
 
         if patient_data is None:
@@ -171,6 +173,10 @@ def patient_dashboard():
 @app.route('/conditions_dashboard', methods=['GET'])
 def conditions_dashboard():
     try:
+
+        if main_singleton.getDataframes("conditions") is None:
+            conditions_obj = ConditionsETL()
+
         conditions_data = [main_singleton.getKPIS("conditions"), main_singleton.getMetrics("conditions")]
 
         if conditions_data is None:

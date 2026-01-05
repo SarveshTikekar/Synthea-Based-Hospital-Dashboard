@@ -15,4 +15,3 @@ class patientMetrics(BaseModel):
     mortality_rate: float = 0
     age_wealth_correlation: float = 0
     income_inequality_index: float = 0
-

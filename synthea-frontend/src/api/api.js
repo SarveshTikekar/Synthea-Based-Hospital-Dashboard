@@ -58,7 +58,7 @@ export const conditionsDashboard = async() => {
 		if (resp.status == 200)
 			return {conditions_dashboard: resp.data}
 
-		return {message: 'error in generation', reason: `${resp.status} --> ${resp.statustext}`}
+		return {message: 'error in generation', reason: `${resp.status} --> ${resp.statusText}`}
 
 	}catch(err){
 		return {message: 'error in generating metrics', reason: `${err}`}
@@ -72,7 +72,7 @@ export const allergiesDashboard = async() => {
 		if (resp.status == 200)
 			return {allergies_dashboard: resp.data}
 
-		return {message: 'error in generation', reason: `${resp.status} --> ${resp.statustext}`}
+		return {message: 'error in generation', reason: `${resp.status} --> ${resp.statusText}`}
 
 	}catch(err){
 		return {message: 'error in generating metrics', reason: `${err}`}

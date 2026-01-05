@@ -12,7 +12,7 @@ import path from 'path';
 const router = createBrowserRouter([
   { path: "/", element: <Homepage /> },
   { path: "/dashboard", element: <MainDashboard /> },
-  { path: "/datageneration", element: <DataGeneration /> },
+  { path: "/data_generation", element: <DataGeneration /> },
   {path: "/patient_dashboard", element: <PatientDashboard/>},
   {path: "/allergies_dashboard", element: <AllergiesDashboard/>},
   {path: "/conditions_dashboard", element: <ConditionsDashboard/>}
