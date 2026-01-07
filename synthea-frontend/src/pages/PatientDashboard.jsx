@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import { patientDashboard } from "@/api/api";
-import { Users, Heart, DollarSign, TrendingUp, Users2, Activity } from "lucide-react";
+import { Users, Heart, DollarSign, TrendingUp, Users2, Activity, Globe, Scale } from "lucide-react";
 import KPICard from "@/components/KPICard";
 import MetricsCard from "@/components/MetricsCard";
-import AdvancedMetricsCard from "@/components/AdvancedMetricsCard";
 
 const PatientDashboard = () => {
-  const [kpis, setKpis] = useState({});
-  const [metrics, setMetrics] = useState({});
+  const [data, setData] = useState({ kpis: {}, metrics: {}, trends: {} });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -16,11 +14,15 @@ const PatientDashboard = () => {
     const fetchData = async () => {
       try {
         const result = await patientDashboard();
-        if (result.patient_dashboard) {
-          setKpis(result.patient_dashboard.kpis || {});
-          setMetrics(result.patient_dashboard.metrics || {});
+        // Matching the Flask structure: { kpis: {}, metrics: {}, metric_trends: {} }
+        if (result) {
+          setData({
+            kpis: result.kpis || {},
+            metrics: result.metrics || {},
+            trends: result.metric_trends || {}
+          });
         } else {
-          setError(result.message || "Failed to load patient data.");
+          setError("Failed to load patient data.");
         }
       } catch (err) {
         setError("Error fetching dashboard data.");
@@ -31,98 +33,119 @@ const PatientDashboard = () => {
     fetchData();
   }, []);
 
-  // Generalized KPI data
+  // 1. Map KPI Data (Injecting placeholder prevValues and periodTypes)
   const kpiData = [
-    { key: "total_patients", title: "Total Patients", value: kpis.total_patients || 0, icon: Users, iconColor: "text-blue-600" },
-    { key: "active_patient_rate", title: "Active Patient Rate", value: kpis.active_patient_rate || 0, displayValue: `${kpis.active_patient_rate || 0}%`, icon: Heart, iconColor: "text-green-600" },
-    { key: "gender_balance_ratio", title: "Gender Balance Ratio", value: kpis.gender_balance_ratio || 0, displayValue: `${kpis.gender_balance_ratio || 0}%`, icon: Users2, iconColor: "text-purple-600" },
-    { key: "mean_family_income", title: "Mean Family Income", value: kpis.mean_family_income || 0, displayValue: `$${kpis.mean_family_income || 0}`, icon: DollarSign, iconColor: "text-yellow-600" },
-    { key: "median_family_income", title: "Median Family Income", value: kpis.median_family_income || 0, displayValue: `$${kpis.median_family_income || 0}`, icon: TrendingUp, iconColor: "text-orange-600" },
+    { 
+      title: "Total Patients", 
+      value: data.kpis.total_patients || 0, 
+      prevValue: (data.kpis.total_patients || 0) - 5, 
+      periodType: "month",
+      icon: Users, 
+      iconBg: "bg-blue-50",
+      iconColor: "text-blue-600" 
+    },
+    { 
+      title: "Active Rate", 
+      value: data.kpis.active_patient_rate || 0, 
+      prevValue: 88, 
+      periodType: "quarter",
+      sentiment: "higher-is-better",
+      icon: Heart, 
+      iconBg: "bg-rose-50",
+      iconColor: "text-rose-600" 
+    },
+    { 
+      title: "Gender Balance", 
+      value: data.kpis.gender_balance_ratio || 0, 
+      prevValue: 49, 
+      periodType: "year",
+      icon: Users2, 
+      iconBg: "bg-purple-50",
+      iconColor: "text-purple-600" 
+    },
+    { 
+      title: "Mean Income", 
+      value: `$${(data.kpis.mean_family_income || 0).toLocaleString()}`, 
+      prevValue: 52000, 
+      periodType: "year",
+      icon: DollarSign, 
+      iconBg: "bg-emerald-50",
+      iconColor: "text-emerald-600" 
+    },
+    { 
+      title: "Median Income", 
+      value: `$${(data.kpis.median_family_income || 0).toLocaleString()}`, 
+      prevValue: 48000, 
+      periodType: "year",
+      icon: TrendingUp, 
+      iconBg: "bg-orange-50",
+      iconColor: "text-orange-600" 
+    },
   ];
-
-  // Generalized metrics data
-  const metricsList = [
-    { label: "Economic Dependence Ratio", value: `${metrics.economic_dependence_ratio || 0}%` },
-    { label: "Cultural Diversity Score", value: `${metrics.cultural_diversity_score || 0}%` },
-    { label: "Mortality Rate", value: `${(metrics.mortality_rate || 0).toFixed(2)}%` },
-    { label: "Age-Wealth Correlation", value: (metrics.age_wealth_correlation || 0).toFixed(2) },
-    { label: "Income Inequality Index", value: (metrics.income_inequality_index || 0).toFixed(2) },
-  ];
-
-  const chartData = [
-    { name: "Economic Dep", value: metrics.economic_dependence_ratio || 0 },
-    { name: "Cultural Div", value: metrics.cultural_diversity_score || 0 },
-    { name: "Mortality", value: parseFloat((metrics.mortality_rate || 0).toFixed(2)) },
-    { name: "Age-Wealth Corr", value: parseFloat((metrics.age_wealth_correlation || 0).toFixed(2)) },
-    { name: "Income Ineq", value: parseFloat((metrics.income_inequality_index || 0).toFixed(2)) },
-  ];
-
-  // Generalized scatter data
-  const scatterData = {
-    datasets: [
-      {
-        label: "Age vs Income",
-        data: Array.from({ length: 50 }, () => ({
-          x: 20 + Math.random() * 60,
-          y: 20000 + Math.random() * 80000,
-        })),
-        backgroundColor: "rgba(20, 184, 166, 0.6)",
-        borderColor: "rgba(20, 184, 166, 1)",
-        borderWidth: 1,
-      },
-    ],
-  };
 
   if (loading) {
     return (
-      <div className="flex min-h-screen w-full bg-gray-50 text-gray-900 font-sans">
+      <div className="flex min-h-screen w-full bg-slate-50">
         <Navbar />
-        <div className="flex-1 flex items-center justify-center">
-          <Activity size={40} className="animate-spin text-teal-600" />
-          <span className="ml-2 text-lg">Loading Patient Dashboard...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex min-h-screen w-full bg-gray-50 text-gray-900 font-sans">
-        <Navbar />
-        <div className="flex-1 flex items-center justify-center">
-          <p className="text-red-600 text-lg">{error}</p>
+        <div className="flex-1 flex flex-col items-center justify-center">
+          <Activity size={48} className="animate-spin text-teal-600 mb-4" />
+          <h2 className="text-xl font-bold text-slate-700">Analyzing Patient Data...</h2>
+          <p className="text-slate-400">Spark is processing ETL trends</p>
         </div>
       </div>
     );
   }
 
   return (
-   <div className="flex h-screen w-full bg-gray-50 text-gray-900 font-sans overflow-hidden">
+    <div className="flex h-screen w-full bg-slate-50 text-slate-900 font-sans overflow-hidden">
+      <Navbar />
 
-    <Navbar />
+      <div className="flex-1 flex flex-col h-full overflow-y-auto relative">
+        <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 p-8 sticky top-0 z-20">
+          <div className="max-w-full">
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Patient Analytics Dashboard</h1>
+            <p className="text-slate-500 mt-1 font-medium">Real-time demographic and economic insights</p>
+          </div>
+        </header>
 
-    {/* 3. CONTENT AREA: 'flex-1' (takes remaining width) + 'overflow-y-auto' (scrolls internally) */}
-    <div className="flex-1 flex flex-col h-full overflow-y-auto relative">
-      
-      <header className="bg-white border-b border-gray-200 p-4 sm:p-6 lg:p-8 shadow-sm shrink-0">
-        <div className="max-w-full">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900">Patient Dashboard</h1>
-          <p className="text-gray-600 mt-2 text-sm sm:text-base">Insights from patient data ETL processing</p>
-        </div>
-      </header>
-
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8">
-        <div className="w-full space-y-6 lg:space-y-8">
+        <main className="p-8 space-y-10">
+          {/* Section 1: KPI Grid */}
           <KPICard kpis={kpiData} />
-          <MetricsCard title="Patient Metrics" metrics={metricsList} chartData={chartData} />
-          <AdvancedMetricsCard title="Age-Wealth Correlation" correlationValue={metrics.age_wealth_correlation} scatterData={scatterData} />
-          {/* Spacer at the bottom so you can scroll past the last card */}
-          <div className="pb-10"></div>
-        </div>
-      </main>
 
+          {/* Section 2: Trend Analysis (Using MetricsCard for each Spark Trend) */}
+          <div className="space-y-10">
+            <MetricsCard 
+              title="Economic Dependence" 
+              metrics={[
+                { label: "Current Ratio", value: `${data.metrics.economic_dependence_ratio}%` },
+              ]} 
+              chartData={data.trends.economic_dependence} 
+              chartType="bar"
+            />
+
+            <MetricsCard 
+              title="Cultural Diversity" 
+              metrics={[
+                { label: "Diversity Score", value: `${data.metrics.cultural_diversity_score}%` }
+              ]} 
+              chartData={data.trends.cultural_diversity} 
+              chartType="line"
+            />
+
+            <MetricsCard 
+              title="Mortality Analysis" 
+              metrics={[
+                { label: "Current Rate", value: `${data.metrics.mortality_rate?.toFixed(2)}%` }
+              ]} 
+              chartData={data.trends.mortality_rate} 
+              chartType="line"
+            />
+          </div>
+
+          <div className="pb-20"></div>
+        </main>
+      </div>
     </div>
-  </div>
   );
 };
 

@@ -1,4 +1,5 @@
 from pyspark.sql import SparkSession
+from pyspark import StorageLevel
 
 # -- We would be instantiating a SingleTon class here and that would be yielded to the API (Following System Design principles) -- 
 
@@ -30,7 +31,7 @@ class Master:
         if key not in self.dataframes:
             self.dataframes[key] = {}
 
-        self.dataframes[key]["dataframe"] = df
+        self.dataframes[key]["dataframe"] = df.persist(StorageLevel.MEMORY_AND_DISK)
 
     def setKPIS(self, key, kpis):
 

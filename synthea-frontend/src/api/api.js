@@ -41,7 +41,7 @@ export const patientDashboard = async() => {
 	try{
 		const resp = await axios.get(`${API_URL}/patient_dashboard`)
 		if (resp.status == 200)
-			return {patient_dashboard: resp.data}
+			return {...resp.data, success: true}
 
 		return {message: 'Error in generation', reason: `${resp.status} --> ${resp.statusText}`}
 

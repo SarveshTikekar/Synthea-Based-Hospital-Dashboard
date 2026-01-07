@@ -9,14 +9,13 @@ from flask_cors import CORS
 import subprocess
 import json
 
-
 # Ensuring the project root (one level up) is in sys.path
 project_root = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 # Importing singletons (ensure these paths are correct)
-from utilities import main_singleton
+from utilities import main_singleton, PatientUtils
 from etl_pipeline.patients import PatientsETL
 from etl_pipeline.conditions import ConditionsETL
 from etl_pipeline.procedures import ProceduresETL
@@ -26,8 +25,10 @@ from etl_pipeline.allergies import AllergiesETL
 app = Flask(__name__)
 CORS(app)
 
-# --- ROUTES ---
+# Global vars
+patient_utils = None
 
+# --- ROUTES ---
 @app.route('/', methods=['GET'])
 def root():
     """Root route - health check"""
@@ -156,15 +157,23 @@ def quick_dashboard_data():
 def patient_dashboard():
     try:
         if main_singleton.getDataframes("patients") is None:
-            patient_obj = PatientsETL()
-
+            PatientsETL()
+            
+        patient_utils = PatientUtils()
         patient_data = [main_singleton.getKPIS("patients"), main_singleton.getMetrics("patients")]
 
         if patient_data is None:
             return jsonify({'message': 'Data not found'}), 404
         
+        trends = patient_utils.run_all()
         return jsonify({'message': 'Data Loaded successfully', 
-                        'kpis': patient_data[0].model_dump(), 'metrics': patient_data[1].model_dump()})
+                        'kpis': patient_data[0].model_dump(), 
+                        'metrics': patient_data[1].model_dump(), 
+                        'metric_trends': {
+                            'economic_dependence': trends[0],
+                            'cultural_diversity': trends[1],
+                            'mortality_rate': trends[2]
+                        }})
 
     except Exception as e:
         return jsonify({'error': str(e)}), 400
@@ -183,7 +192,8 @@ def conditions_dashboard():
             return jsonify({'message': 'Data not found'}), 404
         
         return jsonify({'message': 'Data Loaded successfully', 
-                        'kpis': conditions_data[0].model_dump(), 'metrics': conditions_data[1].model_dump()})
+                        'kpis': conditions_data[0].model_dump(), 
+                        'metrics': conditions_data[1].model_dump()})
 
     except Exception as e:
         return jsonify({'error': str(e)}), 400
