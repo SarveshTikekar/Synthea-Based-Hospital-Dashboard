@@ -15,3 +15,7 @@ class patientMetrics(BaseModel):
     mortality_rate: float = 0
     age_wealth_correlation: float = 0
     income_inequality_index: float = 0
+
+class patientAdvancedMetrics(BaseModel):
+    actural_survival_trend: List[Dict[str, List[Dict[int, float]]]]
+    demographic_entropy: List[Tuple[str, float, List[Dict[str, int]]]]

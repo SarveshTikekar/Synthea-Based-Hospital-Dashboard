@@ -51,4 +51,15 @@ class Master:
 
     def getMetrics(self, key):
          return self.dataframes.get(key, {}).get("metrics")
+
+    def setAdvancedMetrics(self, key, ame):
+        if key not in self.dataframes:
+            self.dataframes[key] = {}
+
+        self.dataframes[key]["advanced_metrics"] = ame
+    
+    def getAdvancedMetrics(self, key):
+        return self.dataframes.get(key, {}).get("advanced_metrics")
+
+
        

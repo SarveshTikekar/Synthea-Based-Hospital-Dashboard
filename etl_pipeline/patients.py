@@ -1,10 +1,13 @@
 # patients_etl.py
-from pyspark.sql.functions import col, when, split, to_date, isnull, mean, percentile_approx, current_date, datediff, coalesce, sum, dense_rank
+from pyspark.sql.functions import col, when, split, to_date, isnull, mean, percentile_approx, current_date, datediff, coalesce, sum, dense_rank, count
+from math import log2
 from pyspark.sql import Window
 from etl_pipeline.master import Master
 import re
 import os
-from .models.patients import patientKPIS, patientMetrics
+from .models.patients import patientKPIS, patientMetrics, patientAdvancedMetrics
+
+builtins = __builtins__
 
 class PatientsETL:
     def __init__(self):
@@ -12,7 +15,8 @@ class PatientsETL:
         self.etl()
         self.calculateKPIS()
         self.calculateMetrics()
-        
+        self.calculateAdvancedMetrics()
+
     def etl(self):
         """
         Load the transformed patients DataFrame from CSV if not already loaded.
@@ -52,7 +56,8 @@ class PatientsETL:
         df = df.withColumn("salutation", when(col("gender") == "M", "Mr.").otherwise("Ms.")) \
                 .fillna({"passport_number": "N/A", "middle_name": "N/A", "doctorate": "No doctorate", "marital_status": "Unknown"})
         
-        
+        #Modify the postal code to start with a '0'
+        df = df.withColumn("postal_code", "0" + col("postal_code"))
         # Store in singleton
         self.master.setDataframes("patients", df)
             
@@ -123,7 +128,65 @@ class PatientsETL:
 
         self.master.setMetrics("patients", patientMetrics(economic_dependence_ratio = econ_dep_ratio, cultural_diversity_score = cult_div_score, mortality_rate = mort_rate, age_wealth_correlation=corr_coeff, income_inequality_index=gini_coeff))
 
-         
+    def calculateAdvancedMetrics(self):
+        
+        #ADM-1 Actural survival trend
+        bins = [x * 5 for x in range(1, 18)]
+        
+        df = self.master.getDataframes("patients")
+        df = df.withColumn("age", when((col("death_date").isNotNull()), (datediff(col("death_date"), col("birth_date"))/365.25).cast("int")) \
+                           .otherwise((datediff(current_date(), col("birth_date"))/365.25)).cast("int"))
+        
+        males = []
+        females = []
+        
+        curr_m, curr_f = 1, 1
+        
+        for req_age in bins:
+            
+            alive_m = df.filter((col("gender") == "M") & (col("age") >= req_age)).count()
+            alive_f = df.filter((col("gender") == "F") & (col("age") >= req_age)).count()
+            
+            dead_m = df.filter((col("gender") == "M") & ((col("age") > (req_age - 5)) & (col("age") <= req_age) & (col("death_date").isNotNull()))).count()
+            dead_f = df.filter((col("gender") == "F") & ((col("age") > (req_age - 5)) & (col("age") <= req_age) & (col("death_date").isNotNull()))).count()
+
+            ratio_m = float(1 - (dead_m/(alive_m if alive_m > 0 else 1)))
+            ratio_f = float(1 - (dead_f/(alive_f if alive_f > 0 else 1)))
+            
+            curr_m , curr_f = round(curr_m * ratio_m, 3), round(curr_f * ratio_f, 3)
+            males.append({req_age: curr_m})
+            females.append({req_age: curr_f})
+        
+        actur_surv_trend = [{"males": males}, {"females": females}]
+
+        #ADM-2 Demographic entropy
+        city_list = [str(row[0]) for row in df.select("geolocated_city").distinct().collect()]
+        dem_entro = []
+
+        for city in city_list:
+            group = [{row[1]: row[2]} for row in df.filter(col("geolocated_city") == city) \
+                    .groupBy("geolocated_city", "race").agg(count("*")).collect()]
+
+            total_count = __builtins__.sum(val for d in group for val in d.values())
+
+            if total_count > 0:
+                terms = [ (val/total_count) * log2(val/total_count) 
+                  for d in group 
+                  for val in d.values() if val > 0 ]
+
+                div_index = round(-1 * __builtins__.sum(terms), 3)
+            else:
+                div_index = 0.0
+            dem_entro.append((city, div_index, group))
+
+        self.master.setAdvancedMetrics("patients", patientAdvancedMetrics(actural_survival_trend=actur_surv_trend, 
+                                                                          demographic_entropy=dem_entro))
+    
+    def testing(self):
+        df = self.master.getDataframes("patients")
+        #print(list(map(lambda x: (x[0], x[1]), df.groupBy("geolocated_city").agg(count("*")).collect())))
+        #print(list(map(lambda x: str(x[0]), df.select("geolocated_city").distinct().collect())))
+
 # Optional: Standalone execution
 if __name__ == "__main__":
     patients_etl = PatientsETL()
@@ -132,3 +195,5 @@ if __name__ == "__main__":
     print("Columns:", df_proc.columns)
     print(patients_etl.master.getKPIS("patients"))
     print(patients_etl.master.getMetrics("patients"))
+    print(patients_etl.master.getAdvancedMetrics("patients"))
+    print(patients_etl.testing())
