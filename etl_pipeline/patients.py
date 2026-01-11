@@ -1,5 +1,6 @@
 # patients_etl.py
-from pyspark.sql.functions import col, when, split, to_date, isnull, mean, percentile_approx, current_date, datediff, coalesce, sum, dense_rank, count
+from pyspark.sql.functions import col, when, split, to_date, isnull, mean, percentile_approx, current_date, datediff, coalesce, sum, dense_rank, count, lit, concat
+
 from math import log2
 from pyspark.sql import Window
 from etl_pipeline.master import Master
@@ -56,8 +57,8 @@ class PatientsETL:
         df = df.withColumn("salutation", when(col("gender") == "M", "Mr.").otherwise("Ms.")) \
                 .fillna({"passport_number": "N/A", "middle_name": "N/A", "doctorate": "No doctorate", "marital_status": "Unknown"})
         
-        #Modify the postal code to start with a '0'
-        df = df.withColumn("postal_code", "0" + col("postal_code"))
+        #Modify the postal code 
+        df = df.withColumn("postal_code", col("postal_code").cast("string")).withColumn("postal_code",concat(lit("0"),col("postal_code")))
         # Store in singleton
         self.master.setDataframes("patients", df)
             
@@ -178,15 +179,15 @@ class PatientsETL:
             else:
                 div_index = 0.0
             dem_entro.append((city, div_index, group))
+            
+
 
         self.master.setAdvancedMetrics("patients", patientAdvancedMetrics(actural_survival_trend=actur_surv_trend, 
                                                                           demographic_entropy=dem_entro))
     
     def testing(self):
         df = self.master.getDataframes("patients")
-        #print(list(map(lambda x: (x[0], x[1]), df.groupBy("geolocated_city").agg(count("*")).collect())))
-        #print(list(map(lambda x: str(x[0]), df.select("geolocated_city").distinct().collect())))
-
+        print(df.printSchema())
 # Optional: Standalone execution
 if __name__ == "__main__":
     patients_etl = PatientsETL()
