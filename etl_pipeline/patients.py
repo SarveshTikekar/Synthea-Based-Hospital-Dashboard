@@ -1,6 +1,5 @@
 # patients_etl.py
-from pyspark.sql.functions import col, when, split, to_date, isnull, mean, percentile_approx, current_date, datediff, coalesce, sum, dense_rank, count, lit, concat
-
+from pyspark.sql.functions import col, when, split, to_date, isnull, mean, percentile_approx, current_date, datediff, coalesce, sum, dense_rank, count, lit, concat, ceil, floor, avg, try_divide, max, min
 from math import log2
 from pyspark.sql import Window
 from etl_pipeline.master import Master
@@ -180,14 +179,28 @@ class PatientsETL:
                 div_index = 0.0
             dem_entro.append((city, div_index, group))
             
+        #ADM-3 Wealth Trajectory
+        temp_df = df
+        temp_df = temp_df.withColumn("wealth_velocity", ceil(try_divide(col("family_income"), col("age"))))  
+        age_bins = {i + (1 if i > 0 else 0): i + 5 for i in range(0, 85, 5)}
+        weal_traj = []
 
+        for lower, upper in age_bins.items():
+            li = temp_df.filter((col("age") >= lower) & (col("age") <= upper)).select("wealth_velocity", "family_income").agg(
+                avg("family_income"),
+                avg("wealth_velocity"),
+            ).first()
 
+            weal_traj.append((f"{lower}-{upper}", int(li[0]), int(li[1])))
+        
         self.master.setAdvancedMetrics("patients", patientAdvancedMetrics(actural_survival_trend=actur_surv_trend, 
-                                                                          demographic_entropy=dem_entro))
+                                                                          demographic_entropy=dem_entro, wealth_trajectory=weal_traj))
     
     def testing(self):
         df = self.master.getDataframes("patients")
         print(df.printSchema())
+        print(f"{df.select(max("family_income")).first()[0] - df.select(min("family_income")).first()[0]}")
+
 # Optional: Standalone execution
 if __name__ == "__main__":
     patients_etl = PatientsETL()
@@ -198,3 +211,4 @@ if __name__ == "__main__":
     print(patients_etl.master.getMetrics("patients"))
     print(patients_etl.master.getAdvancedMetrics("patients"))
     print(patients_etl.testing())
+

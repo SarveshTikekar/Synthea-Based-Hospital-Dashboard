@@ -19,3 +19,5 @@ class patientMetrics(BaseModel):
 class patientAdvancedMetrics(BaseModel):
     actural_survival_trend: List[Dict[str, List[Dict[int, float]]]]
     demographic_entropy: List[Tuple[str, float, List[Dict[str, int]]]]
+    wealth_trajectory: List[Tuple[str, int, int]]
+    #mortality_hazard_by_quintile = List[Dict[str, int]]
