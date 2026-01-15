@@ -2,9 +2,11 @@
 from pyspark.sql.functions import col, when, split, to_date, isnull, mean, percentile_approx, current_date, datediff, coalesce, sum, dense_rank, count, lit, concat, ceil, floor, avg, try_divide, max, min
 from math import log2
 from pyspark.sql import Window
+from pyspark.sql.types import NumericType
 from etl_pipeline.master import Master
 import re
 import os
+import math
 from .models.patients import patientKPIS, patientMetrics, patientAdvancedMetrics
 
 builtins = __builtins__
@@ -192,14 +194,35 @@ class PatientsETL:
             ).first()
 
             weal_traj.append((f"{lower}-{upper}", int(li[0]), int(li[1])))
+
+        #ADM-4 Mortality Hazard by income based quartiles
+        interval= math.ceil((df.select(max("family_income")).first()[0] - df.select(min("family_income")).first()[0])/10)
+        quintiles= {i + (1 if i > 0 else 0): i+interval for i in range(0, df.select(max("family_income")).first()[0] + 1, interval)}
+        distinct_races = list(map(lambda x: x[0], df.select("race").distinct().collect()))
+        mort_haz_with_quintiles = []
         
+        for race in distinct_races: 
+            q_list = []
+            for index, quart in enumerate(quintiles.items()):
+
+                num = df.filter((col("race") == race) & (col("family_income") >= quart[0]) & (col("family_income") <= quart[1]) & (col("death_date").isNotNull())).count()
+                denom = df.filter((col("race") == race) & (col("family_income") >= quart[0]) & (col("family_income") <= quart[1])).count()
+
+                prob = round(num/(denom if denom > 0 else 1), 3)
+                q_list.append((f"Q{index}", [quart[0], quart[1]], prob))
+
+            mort_haz_with_quintiles.append({race: q_list})
+
+        del mort_haz_with_quintiles["other"]
         self.master.setAdvancedMetrics("patients", patientAdvancedMetrics(actural_survival_trend=actur_surv_trend, 
-                                                                          demographic_entropy=dem_entro, wealth_trajectory=weal_traj))
+                                                                          demographic_entropy=dem_entro, wealth_trajectory=weal_traj, 
+                                                                          mortality_hazard_by_quintiles=mort_haz_with_quintiles))
     
     def testing(self):
         df = self.master.getDataframes("patients")
         print(df.printSchema())
-        print(f"{df.select(max("family_income")).first()[0] - df.select(min("family_income")).first()[0]}")
+        #print(f"{df.select(max("family_income")).first()[0] - df.select(min("family_income")).first()[0]}")
+        #print(list(map(lambda x: x[0] if x[0] != 'other' else '', df.select("race").distinct().collect())))
 
 # Optional: Standalone execution
 if __name__ == "__main__":
@@ -211,4 +234,3 @@ if __name__ == "__main__":
     print(patients_etl.master.getMetrics("patients"))
     print(patients_etl.master.getAdvancedMetrics("patients"))
     print(patients_etl.testing())
-

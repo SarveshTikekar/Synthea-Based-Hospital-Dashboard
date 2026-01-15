@@ -72,6 +72,7 @@ def get_patient_count():
             "status": 404,
             "error": str(e)
         })
+
 @app.route('/generate_data/', methods=['GET'])
 def generate_data():
     """
