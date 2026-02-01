@@ -9,7 +9,7 @@ import os
 import math
 from .models.patients import patientKPIS, patientMetrics, patientAdvancedMetrics
 
-builtins = __builtins__
+import builtins
 
 class PatientsETL:
     def __init__(self):
@@ -169,14 +169,14 @@ class PatientsETL:
             group = [{row[1]: row[2]} for row in df.filter(col("geolocated_city") == city) \
                     .groupBy("geolocated_city", "race").agg(count("*")).collect()]
 
-            total_count = __builtins__.sum(val for d in group for val in d.values())
+            total_count = builtins.sum(val for d in group for val in d.values())
 
             if total_count > 0:
                 terms = [ (val/total_count) * log2(val/total_count) 
                   for d in group 
                   for val in d.values() if val > 0 ]
 
-                div_index = round(-1 * __builtins__.sum(terms), 3)
+                div_index = round(-1 * builtins.sum(terms), 3)
             else:
                 div_index = 0.0
             dem_entro.append((city, div_index, group))
@@ -193,15 +193,20 @@ class PatientsETL:
                 avg("wealth_velocity"),
             ).first()
 
-            weal_traj.append((f"{lower}-{upper}", int(li[0]), int(li[1])))
+            income = int(li[0]) if li[0] is not None else 0
+            velocity = int(li[1]) if li[1] is not None else 0
+            weal_traj.append((f"{lower}-{upper}", income, velocity))
 
         #ADM-4 Mortality Hazard by income based quartiles
         interval= math.ceil((df.select(max("family_income")).first()[0] - df.select(min("family_income")).first()[0])/10)
         quintiles= {i + (1 if i > 0 else 0): i+interval for i in range(0, df.select(max("family_income")).first()[0] + 1, interval)}
         distinct_races = list(map(lambda x: x[0], df.select("race").distinct().collect()))
-        mort_haz_with_quintiles = []
+        mort_haz_with_quintiles = {}
         
         for race in distinct_races: 
+            if race == 'other':
+                continue
+
             q_list = []
             for index, quart in enumerate(quintiles.items()):
 
@@ -211,26 +216,26 @@ class PatientsETL:
                 prob = round(num/(denom if denom > 0 else 1), 3)
                 q_list.append((f"Q{index}", [quart[0], quart[1]], prob))
 
-            mort_haz_with_quintiles.append({race: q_list})
+            mort_haz_with_quintiles[race] = q_list
 
-        del mort_haz_with_quintiles["other"]
         self.master.setAdvancedMetrics("patients", patientAdvancedMetrics(actural_survival_trend=actur_surv_trend, 
                                                                           demographic_entropy=dem_entro, wealth_trajectory=weal_traj, 
                                                                           mortality_hazard_by_quintiles=mort_haz_with_quintiles))
     
     def testing(self):
-        df = self.master.getDataframes("patients")
-        print(df.printSchema())
+        pass
+        #df = self.master.getDataframes("patients")
+        #print(df.printSchema())
         #print(f"{df.select(max("family_income")).first()[0] - df.select(min("family_income")).first()[0]}")
         #print(list(map(lambda x: x[0] if x[0] != 'other' else '', df.select("race").distinct().collect())))
 
 # Optional: Standalone execution
-if __name__ == "__main__":
-    patients_etl = PatientsETL()
-    df_proc = patients_etl.get_patients()
-    df_proc.show(10)
-    print("Columns:", df_proc.columns)
-    print(patients_etl.master.getKPIS("patients"))
-    print(patients_etl.master.getMetrics("patients"))
-    print(patients_etl.master.getAdvancedMetrics("patients"))
-    print(patients_etl.testing())
+# if __name__ == "__main__":
+#     patients_etl = PatientsETL()
+#     df_proc = patients_etl.get_patients()
+#     df_proc.show(10)
+#     print("Columns:", df_proc.columns)
+#     print(patients_etl.master.getKPIS("patients"))
+#     print(patients_etl.master.getMetrics("patients"))
+#     print(patients_etl.master.getAdvancedMetrics("patients"))
+#     print(patients_etl.testing())

@@ -161,7 +161,7 @@ def patient_dashboard():
             PatientsETL()
             
         patient_utils = PatientUtils()
-        patient_data = [main_singleton.getKPIS("patients"), main_singleton.getMetrics("patients")]
+        patient_data = [main_singleton.getKPIS("patients"), main_singleton.getMetrics("patients"), main_singleton.getAdvancedMetrics("patients")]
 
         if patient_data is None:
             return jsonify({'message': 'Data not found'}), 404
@@ -174,7 +174,8 @@ def patient_dashboard():
                             'economic_dependence': trends[0],
                             'cultural_diversity': trends[1],
                             'mortality_rate': trends[2]
-                        }})
+                        },
+                        'advanced_metrics': patient_data[2].model_dump()})
 
     except Exception as e:
         return jsonify({'error': str(e)}), 400
