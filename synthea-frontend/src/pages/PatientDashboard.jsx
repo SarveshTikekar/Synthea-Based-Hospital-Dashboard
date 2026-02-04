@@ -259,13 +259,18 @@ const PatientDashboard = () => {
                 subtitle="Top Cities by Population Diversity"
                 icon={Users}
               >
-                <BarChart data={entropyData} layout="vertical" margin={{ left: 20 }}>
+                <BarChart data={entropyData} layout="vertical" margin={{ left: 20 }} barSize={24}>
+                  <defs>
+                    <linearGradient id="gradEntropy" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#8b5cf6" stopOpacity={1} />
+                      <stop offset="100%" stopColor="#c084fc" stopOpacity={1} />
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
                   <XAxis type="number" fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
                   <YAxis dataKey="name" type="category" width={100} fontSize={11} tickLine={false} tick={{ fontSize: 11, fontWeight: 600, fill: '#64748b' }} />
-                  <Tooltip cursor={{ fill: 'rgba(241, 245, 249, 0.5)' }} contentStyle={{ borderRadius: '12px', border: 'none' }} />
-                  <Bar dataKey="value" fill="#8b5cf6" radius={[0, 4, 4, 0]} barSize={24}>
-                  </Bar>
+                  <Tooltip cursor={{ fill: 'rgba(241, 245, 249, 0.5)' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
+                  <Bar dataKey="value" fill="url(#gradEntropy)" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </AdvancedChartCard>
 
@@ -299,16 +304,37 @@ const PatientDashboard = () => {
                 subtitle="Hazard Probability by Income Quintile"
                 icon={Scale}
               >
-                <BarChart data={mortalityData} barGap={0}>
+                <BarChart data={mortalityData} barGap={0} barSize={32}>
+                  <defs>
+                    <linearGradient id="gradWhite" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#94a3b8" stopOpacity={1} />
+                      <stop offset="100%" stopColor="#cbd5e1" stopOpacity={1} />
+                    </linearGradient>
+                    <linearGradient id="gradBlack" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#0d9488" stopOpacity={1} />
+                      <stop offset="100%" stopColor="#2dd4bf" stopOpacity={1} />
+                    </linearGradient>
+                    <linearGradient id="gradAsian" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#0284c7" stopOpacity={1} />
+                      <stop offset="100%" stopColor="#38bdf8" stopOpacity={1} />
+                    </linearGradient>
+                    <linearGradient id="gradNative" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#6366f1" stopOpacity={1} />
+                      <stop offset="100%" stopColor="#818cf8" stopOpacity={1} />
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                   <XAxis dataKey="name" fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} dy={10} />
                   <YAxis fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} unit="%" />
-                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none' }} cursor={{ fill: 'rgba(241, 245, 249, 0.5)' }} />
-                  <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                  <Bar dataKey="white" name="White" stackId="a" fill="#94a3b8" radius={[0, 0, 4, 4]} />
-                  <Bar dataKey="black" name="Black" stackId="a" fill="#475569" radius={[0, 0, 4, 4]} />
-                  <Bar dataKey="asian" name="Asian" stackId="a" fill="#334155" radius={[0, 0, 4, 4]} />
-                  <Bar dataKey="native" name="Native" stackId="a" fill="#1e293b" radius={[4, 4, 0, 0]} />
+                  <Tooltip
+                    cursor={{ fill: 'rgba(241, 245, 249, 0.5)' }}
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
+                  />
+                  <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
+                  <Bar dataKey="white" name="White" stackId="a" fill="url(#gradWhite)" radius={[0, 0, 4, 4]} />
+                  <Bar dataKey="black" name="Black" stackId="a" fill="url(#gradBlack)" radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="asian" name="Asian" stackId="a" fill="url(#gradAsian)" radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="native" name="Native" stackId="a" fill="url(#gradNative)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </AdvancedChartCard>
 

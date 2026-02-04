@@ -1,5 +1,5 @@
 # conditions_etl.py
-from pyspark.sql.functions import col, to_date, regexp_extract, isnull, mean, countDistinct, sum, coalesce, current_date, datediff, avg, when, date_sub, count, trim, floor
+from pyspark.sql.functions import col, to_date, regexp_extract, isnull, mean, countDistinct, sum, coalesce, current_date, datediff, avg, when, date_sub, count, trim, floor, lit, round
 from etl_pipeline.master import Master
 import os
 import math
@@ -66,26 +66,20 @@ class ConditionsETL:
 
 
         #KPI-4 Average time to cure: Average time (in days) taken to completely treat a condition
+        avg_time_cure_val = df.filter(col("date_of_abetment").isNotNull()) \
+                        .agg(avg(datediff(col("date_of_abetment"), col("condition_record_date")))).first()[0]
+        avg_time_cure = math.ceil(avg_time_cure_val) if avg_time_cure_val is not None else 0 
 
-        
-
-        avg_time_cure = math.ceil(df.filter(col("date_of_abetment").isNotNull()) \
-                        .agg(avg(datediff(col("date_of_abetment"), col("condition_record_date")))).first()[0]) 
-
-        #KPI-4 and KPI-5 Admission rates in last 30 and 60 days
-        
+        #KPI-5 Admission rates in last days 
         metrics = df.agg(
         # Count rows where date >= Today - 30 days
             sum(when(col("condition_record_date") >= date_sub(current_date(), 30), 1).otherwise(0)).alias("adm_30"),
-        
-        # Count rows where date >= Today - 60 days
-            sum(when(col("condition_record_date") >= date_sub(current_date(), 60), 1).otherwise(0)).alias("adm_60")
+    
         ).first()
 
         adm_30 = metrics["adm_30"]
-        adm_60 = metrics["adm_60"] 
             
-        self.master.setKPIS("conditions", conditionKPIS(current_active_burden=curr_act_burd, global_recovery_rate=glob_reco_rate, patient_complexity_score=pat_comp_score, average_time_to_cure=avg_time_cure, admission_rate_last_30_days=adm_30, admission_rate_last_60_days=adm_60))
+        self.master.setKPIS("conditions", conditionKPIS(current_active_burden=curr_act_burd, global_recovery_rate=glob_reco_rate, patient_complexity_score=pat_comp_score, average_time_to_cure=avg_time_cure, admission_rate_last_30_days=adm_30))
     
 
     def calculateMetrics(self):
@@ -96,16 +90,19 @@ class ConditionsETL:
                             .groupBy("medical_concepts") \
                             .agg(count(col("uuid")).alias("dis_count")) \
                             .orderBy(col("dis_count").desc()) \
-                            .limit(5).collect()
+                            .limit(10).collect()
         
         collection2 = [row.asDict() for row in collection]
         top_5_live_disorders = [{item["medical_concepts"]: item["dis_count"]} for item in collection2]
 
         #Metric-2 Chronic vs Acute condition comparison
-        collection = df.filter((col("associated_semantics") == "disorder") & (col("date_of_abetment").isNull())) \
-                    .withColumn("clinical_course", when(col("condition_record_date") >= date_sub(current_date(), 90), "chronic").otherwise("acute")) \
+        collection = df.filter(col("associated_semantics") == "disorder") \
+                    .withColumn("end_date", coalesce(col("date_of_abetment"), current_date())) \
+                    .withColumn("duration_days", datediff("end_date", "condition_record_date")) \
+                    .withColumn("clinical_course", when(col("duration_days") >= 90, "chronic").otherwise("acute")) \
                     .groupBy("clinical_course") \
-                    .agg(count(col("uuid")).alias("ca_count")).collect()
+                    .agg(count("uuid").alias("ca_count")) \
+                    .collect() 
         
         collection2 = [row.asDict() for row in collection]
         chron_vs_ac = [{item['clinical_course']: item['ca_count'] for item in collection2}]
@@ -151,14 +148,46 @@ class ConditionsETL:
         collection2 = [row.asDict() for row in collection]
         commor_pattern = [{item['con_count']: item['c2'] for item in collection2}]
 
-        self.master.setMetrics("conditions",conditionMetrics(top_disorder_conditions=top_5_live_disorders, chronic_vs_acute=chron_vs_ac, disease_resolution_efficiency=disease_resolution_top_20, top_10_recurring_disorders=top_10_recurr_disorders, commorbidity_pattern=commor_pattern))
-        
+        #Metric 6- Top 10 conditions having highest clinical gravity score
 
+        
+        active_df = df.filter(col("date_of_abetment").isNull())
+
+        patient_load = active_df.groupBy("uuid").agg(
+            countDistinct("medical_concepts").alias("Ap")
+        )
+
+        gravity_df = active_df.join(patient_load, "uuid") \
+            .groupBy("medical_concepts") \
+            .agg(
+                countDistinct("uuid").alias("Nc"),
+                round(avg(col("Ap") - 1), 0).cast("int").alias("score")
+            )
+
+        clinical_gravity = sorted(
+            [{row.medical_concepts: int(row.score)} for row in gravity_df.collect()], 
+            key=lambda x: list(x.values())[0], 
+            reverse=True
+        )[:15]
+
+        self.master.setMetrics("conditions",conditionMetrics(top_disorder_conditions=top_5_live_disorders, chronic_vs_acute=chron_vs_ac, disease_resolution_efficiency=disease_resolution_top_20, top_10_recurring_disorders=top_10_recurr_disorders, commorbidity_pattern=commor_pattern, clinical_gravity=clinical_gravity))
+        
+    def calculateAdvancedMetrics(self):
+        pass
+
+    def test(self):
+        df = self.master.getDataframes("conditions")
+        distinct_conditions = list(map(lambda x: x[0], df.select("medical_concepts").distinct().collect()))
+        print(distinct_conditions, len(distinct_conditions), sep='\n')
+
+        #df.show(10)
+        
 # Optional: Standalone execution
-if __name__ == "__main__":
-    conditions_etl = ConditionsETL()
-    df_proc = conditions_etl.getDf()
-    df_proc.show(25)
-    print(conditions_etl.master.getKPIS("conditions"))
-    print(conditions_etl.master.getMetrics("conditions"))
-    print("Columns:", df_proc.columns)
+#if __name__ == "__main__":
+#    conditions_etl = ConditionsETL()
+#    df_proc = conditions_etl.getDf()
+#    df_proc.show(25)
+#    print(conditions_etl.master.getKPIS("conditions"))
+#    print(conditions_etl.master.getMetrics("conditions"))
+#    print(conditions_etl.test())
+#    print("Columns:", df_proc.columns)

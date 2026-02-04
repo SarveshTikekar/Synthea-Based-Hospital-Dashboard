@@ -5,7 +5,7 @@ import {
 } from "recharts";
 import { BarChart3, TrendingUp, History } from "lucide-react";
 
-const MetricsCard = ({ title, metrics, chartData, chartType = "line" }) => {
+const MetricsCard = ({ title, metrics, chartData, chartType = "line", children }) => {
 
   // Helper to transform Spark [{ "2025": 10 }] -> [{ name: "2025", value: 10 }]
   const formattedData = useMemo(() => {
@@ -51,56 +51,58 @@ const MetricsCard = ({ title, metrics, chartData, chartType = "line" }) => {
         </div>
 
         <div className="h-[250px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            {chartType === "line" ? (
-              <AreaChart data={formattedData}>
-                <defs>
-                  <linearGradient id="colorMetric" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#14b8a6" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="0" vertical={false} stroke="#f1f5f9" />
-                <XAxis
-                  dataKey="name"
-                  fontSize={11}
-                  fontWeight={700}
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: '#94a3b8' }}
-                  dy={10}
-                />
-                <YAxis
-                  fontSize={11}
-                  fontWeight={700}
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: '#94a3b8' }}
-                />
-                <Tooltip
-                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                  cursor={{ stroke: '#14b8a6', strokeWidth: 2, strokeDasharray: '4 4' }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="value"
-                  stroke="#14b8a6"
-                  strokeWidth={4}
-                  fillOpacity={1}
-                  fill="url(#colorMetric)"
-                  animationDuration={1500}
-                />
-              </AreaChart>
-            ) : (
-              <BarChart data={formattedData}>
-                <CartesianGrid strokeDasharray="0" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" fontSize={11} fontWeight={700} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} dy={10} />
-                <YAxis fontSize={11} fontWeight={700} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
-                <Tooltip cursor={{ fill: 'rgba(20, 184, 166, 0.05)' }} />
-                <Bar dataKey="value" fill="#14b8a6" radius={[6, 6, 0, 0]} barSize={40} animationDuration={1500} />
-              </BarChart>
-            )}
-          </ResponsiveContainer>
+          {children ? children : (
+            <ResponsiveContainer width="100%" height="100%">
+              {chartType === "line" ? (
+                <AreaChart data={formattedData}>
+                  <defs>
+                    <linearGradient id="colorMetric" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#14b8a6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="0" vertical={false} stroke="#f1f5f9" />
+                  <XAxis
+                    dataKey="name"
+                    fontSize={11}
+                    fontWeight={700}
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#94a3b8' }}
+                    dy={10}
+                  />
+                  <YAxis
+                    fontSize={11}
+                    fontWeight={700}
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#94a3b8' }}
+                  />
+                  <Tooltip
+                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                    cursor={{ stroke: '#14b8a6', strokeWidth: 2, strokeDasharray: '4 4' }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="value"
+                    stroke="#14b8a6"
+                    strokeWidth={4}
+                    fillOpacity={1}
+                    fill="url(#colorMetric)"
+                    animationDuration={1500}
+                  />
+                </AreaChart>
+              ) : (
+                <BarChart data={formattedData}>
+                  <CartesianGrid strokeDasharray="0" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="name" fontSize={11} fontWeight={700} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} dy={10} />
+                  <YAxis fontSize={11} fontWeight={700} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
+                  <Tooltip cursor={{ fill: 'rgba(20, 184, 166, 0.05)' }} />
+                  <Bar dataKey="value" fill="#14b8a6" radius={[6, 6, 0, 0]} barSize={40} animationDuration={1500} />
+                </BarChart>
+              )}
+            </ResponsiveContainer>
+          )}
         </div>
       </div>
     </div>
