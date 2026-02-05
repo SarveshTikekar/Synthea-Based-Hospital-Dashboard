@@ -15,7 +15,7 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 # Importing singletons (ensure these paths are correct)
-from utilities import main_singleton, PatientUtils
+from utilities import main_singleton, PatientUtils, DataGenUtils
 from etl_pipeline.patients import PatientsETL
 from etl_pipeline.conditions import ConditionsETL
 from etl_pipeline.procedures import ProceduresETL
@@ -27,6 +27,7 @@ CORS(app)
 
 # Global vars
 patient_utils = None
+datagen_utils = None
 
 # --- ROUTES ---
 @app.route('/', methods=['GET'])
@@ -96,10 +97,14 @@ def generate_data():
             text=True,
             check=True
         )
+        
+        datagen_utils = DataGenUtils()
+        metrics = datagen_utils.runnerMethod()
 
         return jsonify({
             "status": "success",
             "message": f"{num_patients} patient records successfully generated",
+            "datagen_metrics": metrics,
             "stdout": result.stdout.strip(),
         }), 200
 

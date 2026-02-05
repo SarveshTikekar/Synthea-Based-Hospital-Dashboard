@@ -6,22 +6,28 @@ import DataGeneration from './pages/DataGeneration';
 import PatientDashboard from './pages/PatientDashboard';
 import ConditionsDashboard from "./pages/ConditionsDashboard";
 import AllergiesDashboard from './pages/AllergiesDashboard';
-
+import Layout from './components/Layout';
 import path from 'path';
 
 const router = createBrowserRouter([
-  { path: "/", element: <Homepage /> },
-  { path: "/dashboard", element: <MainDashboard /> },
-  { path: "/data_generation", element: <DataGeneration /> },
-  { path: "/patient_dashboard", element: <PatientDashboard /> },
-  { path: "/conditions_dashboard", element: <ConditionsDashboard /> },
-  { path: "/allergies_dashboard", element: <AllergiesDashboard /> },
+  {
+    path: "/",
+    element: <Layout />,
+    children: [
+      { path: "/", element: <Homepage /> },
+      { path: "/dashboard", element: <MainDashboard /> },
+      { path: "/data_generation", element: <DataGeneration /> },
+      { path: "/patient_dashboard", element: <PatientDashboard /> },
+      { path: "/conditions_dashboard", element: <ConditionsDashboard /> },
+      { path: "/allergies_dashboard", element: <AllergiesDashboard /> },
+    ]
+  }
 ]);
 
 function App() {
   return (
     // w-full ensures it takes full browser width, min-h-screen ensures full height
-    <div className="w-full h-screen bg-gray-50 overflow-hidden">
+    <div className="w-full min-h-screen bg-gray-50">
       <RouterProvider router={router} />
     </div>
   );

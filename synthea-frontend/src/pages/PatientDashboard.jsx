@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from "react";
-import Navbar from "@/components/Navbar";
 import { patientDashboard } from "@/api/api";
 import { Users, Heart, DollarSign, TrendingUp, Users2, Activity, Globe, Scale } from "lucide-react";
 import KPICard from "@/components/KPICard";
@@ -158,10 +157,9 @@ const PatientDashboard = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen w-full bg-slate-50">
-        <Navbar />
-        <div className="flex-1 flex flex-col items-center justify-center">
-          <Activity size={48} className="animate-spin text-teal-600 mb-4" />
+      <div className="flex h-96 items-center justify-center">
+        <div className="text-center">
+          <Activity size={48} className="animate-spin text-teal-600 mb-4 mx-auto" />
           <h2 className="text-xl font-bold text-slate-700">Analyzing Patient Data...</h2>
           <p className="text-slate-400">Spark is processing ETL trends</p>
         </div>
@@ -169,181 +167,173 @@ const PatientDashboard = () => {
     );
   }
 
-
   return (
-    <div className="flex h-screen w-full bg-slate-50 text-slate-900 font-sans overflow-hidden">
-      <Navbar />
+    <>
+      <header className="mb-8">
+        <h1 className="text-2xl font-black text-slate-900 tracking-tight">Patient Analytics Dashboard</h1>
+        <p className="text-slate-500 mt-1 font-medium">Real-time demographic and economic insights</p>
+      </header>
 
-      <div className="flex-1 flex flex-col h-full overflow-y-auto relative">
-        <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 p-8 sticky top-0 z-20">
-          <div className="max-w-full">
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Patient Analytics Dashboard</h1>
-            <p className="text-slate-500 mt-1 font-medium">Real-time demographic and economic insights</p>
+      <div className="space-y-10">
+        {/* Section 1: KPI Grid */}
+        <KPICard kpis={kpiData} />
+
+        {/* Section 2: Trend Analysis (Standard Metrics) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <MetricsCard
+            title="Economic Dependence"
+            metrics={[
+              { label: "Current Ratio", value: `${data.metrics.economic_dependence_ratio}%` },
+            ]}
+            chartData={data.trends.economic_dependence}
+            chartType="bar"
+          />
+
+          <MetricsCard
+            title="Cultural Diversity"
+            metrics={[
+              { label: "Diversity Score", value: `${data.metrics.cultural_diversity_score}%` }
+            ]}
+            chartData={data.trends.cultural_diversity}
+            chartType="line"
+          />
+
+          <MetricsCard
+            title="Mortality Analysis"
+            metrics={[
+              { label: "Current Rate", value: `${data.metrics.mortality_rate?.toFixed(2)}%` }
+            ]}
+            chartData={data.trends.mortality_rate}
+            chartType="line"
+          />
+        </div>
+
+        {/* Section 3: Advanced Analysis */}
+        <div className="pt-10 border-t border-slate-200">
+          <h2 className="text-2xl font-black text-slate-800 tracking-tight mb-8 flex items-center gap-3">
+            <Globe className="text-teal-600" /> Advanced Analysis
+          </h2>
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+
+            {/* 1. Survival Trend */}
+            <AdvancedChartCard
+              title="Actual Survival Trend"
+              subtitle="Male vs Female Survival Probability"
+              icon={Activity}
+            >
+              <AreaChart data={survivalData}>
+                <defs>
+                  <linearGradient id="colorMale" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1} />
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="colorFemale" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#ec4899" stopOpacity={0.1} />
+                    <stop offset="95%" stopColor="#ec4899" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="name" fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} dy={10} />
+                <YAxis fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} unit="%" />
+                <Tooltip
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                />
+                <Legend iconType="circle" />
+                <Area type="monotone" dataKey="Male" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorMale)" />
+                <Area type="monotone" dataKey="Female" stroke="#ec4899" strokeWidth={3} fillOpacity={1} fill="url(#colorFemale)" />
+              </AreaChart>
+            </AdvancedChartCard>
+
+            {/* 2. Demographic Entropy */}
+            <AdvancedChartCard
+              title="Demographic Entropy"
+              subtitle="Top Cities by Population Diversity"
+              icon={Users}
+            >
+              <BarChart data={entropyData} layout="vertical" margin={{ left: 20 }} barSize={24}>
+                <defs>
+                  <linearGradient id="gradEntropy" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#8b5cf6" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#c084fc" stopOpacity={1} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                <XAxis type="number" fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
+                <YAxis dataKey="name" type="category" width={100} fontSize={11} tickLine={false} tick={{ fontSize: 11, fontWeight: 600, fill: '#64748b' }} />
+                <Tooltip cursor={{ fill: 'rgba(241, 245, 249, 0.5)' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
+                <Bar dataKey="value" fill="url(#gradEntropy)" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </AdvancedChartCard>
+
+            {/* 3. Wealth Trajectory */}
+            <AdvancedChartCard
+              title="Wealth Trajectory"
+              subtitle="Income vs Velocity by Age Group"
+              icon={DollarSign}
+            >
+              <ComposedChart data={wealthData}>
+                <defs>
+                  <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#14b8a6" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="name" fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} dy={10} />
+                <YAxis yAxisId="left" fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#14b8a6' }} tickFormatter={(value) => `$${value}`} />
+                <YAxis yAxisId="right" orientation="right" fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#f59e0b' }} />
+                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none' }} />
+                <Legend />
+                <Area yAxisId="left" type="monotone" dataKey="Income" fill="url(#colorIncome)" stroke="#14b8a6" strokeWidth={3} />
+                <Line yAxisId="right" type="monotone" dataKey="Velocity" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4, strokeWidth: 2, fill: '#fff' }} />
+              </ComposedChart>
+            </AdvancedChartCard>
+
+            {/* 4. Mortality Hazard */}
+            <AdvancedChartCard
+              title="Mortality Hazard"
+              subtitle="Hazard Probability by Income Quintile"
+              icon={Scale}
+            >
+              <BarChart data={mortalityData} barGap={0} barSize={32}>
+                <defs>
+                  <linearGradient id="gradWhite" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#94a3b8" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#cbd5e1" stopOpacity={1} />
+                  </linearGradient>
+                  <linearGradient id="gradBlack" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#0d9488" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#2dd4bf" stopOpacity={1} />
+                  </linearGradient>
+                  <linearGradient id="gradAsian" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#0284c7" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#38bdf8" stopOpacity={1} />
+                  </linearGradient>
+                  <linearGradient id="gradNative" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#6366f1" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#818cf8" stopOpacity={1} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="name" fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} dy={10} />
+                <YAxis fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} unit="%" />
+                <Tooltip
+                  cursor={{ fill: 'rgba(241, 245, 249, 0.5)' }}
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
+                />
+                <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
+                <Bar dataKey="white" name="White" stackId="a" fill="url(#gradWhite)" radius={[0, 0, 4, 4]} />
+                <Bar dataKey="black" name="Black" stackId="a" fill="url(#gradBlack)" radius={[0, 0, 0, 0]} />
+                <Bar dataKey="asian" name="Asian" stackId="a" fill="url(#gradAsian)" radius={[0, 0, 0, 0]} />
+                <Bar dataKey="native" name="Native" stackId="a" fill="url(#gradNative)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </AdvancedChartCard>
+
           </div>
-        </header>
-
-        <main className="p-8 space-y-10">
-          {/* Section 1: KPI Grid */}
-          <KPICard kpis={kpiData} />
-
-          {/* Section 2: Trend Analysis (Standard Metrics) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <MetricsCard
-              title="Economic Dependence"
-              metrics={[
-                { label: "Current Ratio", value: `${data.metrics.economic_dependence_ratio}%` },
-              ]}
-              chartData={data.trends.economic_dependence}
-              chartType="bar"
-            />
-
-            <MetricsCard
-              title="Cultural Diversity"
-              metrics={[
-                { label: "Diversity Score", value: `${data.metrics.cultural_diversity_score}%` }
-              ]}
-              chartData={data.trends.cultural_diversity}
-              chartType="line"
-            />
-
-            <MetricsCard
-              title="Mortality Analysis"
-              metrics={[
-                { label: "Current Rate", value: `${data.metrics.mortality_rate?.toFixed(2)}%` }
-              ]}
-              chartData={data.trends.mortality_rate}
-              chartType="line"
-            />
-          </div>
-
-          {/* Section 3: Advanced Analysis */}
-          <div className="pt-10 border-t border-slate-200">
-            <h2 className="text-2xl font-black text-slate-800 tracking-tight mb-8 flex items-center gap-3">
-              <Globe className="text-teal-600" /> Advanced Analysis
-            </h2>
-
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-
-              {/* 1. Survival Trend */}
-              <AdvancedChartCard
-                title="Actual Survival Trend"
-                subtitle="Male vs Female Survival Probability"
-                icon={Activity}
-              >
-                <AreaChart data={survivalData}>
-                  <defs>
-                    <linearGradient id="colorMale" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1} />
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="colorFemale" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#ec4899" stopOpacity={0.1} />
-                      <stop offset="95%" stopColor="#ec4899" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                  <XAxis dataKey="name" fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} dy={10} />
-                  <YAxis fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} unit="%" />
-                  <Tooltip
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                  />
-                  <Legend iconType="circle" />
-                  <Area type="monotone" dataKey="Male" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorMale)" />
-                  <Area type="monotone" dataKey="Female" stroke="#ec4899" strokeWidth={3} fillOpacity={1} fill="url(#colorFemale)" />
-                </AreaChart>
-              </AdvancedChartCard>
-
-              {/* 2. Demographic Entropy */}
-              <AdvancedChartCard
-                title="Demographic Entropy"
-                subtitle="Top Cities by Population Diversity"
-                icon={Users}
-              >
-                <BarChart data={entropyData} layout="vertical" margin={{ left: 20 }} barSize={24}>
-                  <defs>
-                    <linearGradient id="gradEntropy" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor="#8b5cf6" stopOpacity={1} />
-                      <stop offset="100%" stopColor="#c084fc" stopOpacity={1} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                  <XAxis type="number" fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
-                  <YAxis dataKey="name" type="category" width={100} fontSize={11} tickLine={false} tick={{ fontSize: 11, fontWeight: 600, fill: '#64748b' }} />
-                  <Tooltip cursor={{ fill: 'rgba(241, 245, 249, 0.5)' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
-                  <Bar dataKey="value" fill="url(#gradEntropy)" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </AdvancedChartCard>
-
-              {/* 3. Wealth Trajectory */}
-              <AdvancedChartCard
-                title="Wealth Trajectory"
-                subtitle="Income vs Velocity by Age Group"
-                icon={DollarSign}
-              >
-                <ComposedChart data={wealthData}>
-                  <defs>
-                    <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="#14b8a6" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid stroke="#f1f5f9" vertical={false} />
-                  <XAxis dataKey="name" fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} dy={10} />
-                  <YAxis yAxisId="left" fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#14b8a6' }} tickFormatter={(value) => `$${value}`} />
-                  <YAxis yAxisId="right" orientation="right" fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#f59e0b' }} />
-                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none' }} />
-                  <Legend />
-                  <Area yAxisId="left" type="monotone" dataKey="Income" fill="url(#colorIncome)" stroke="#14b8a6" strokeWidth={3} />
-                  <Line yAxisId="right" type="monotone" dataKey="Velocity" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4, strokeWidth: 2, fill: '#fff' }} />
-                </ComposedChart>
-              </AdvancedChartCard>
-
-              {/* 4. Mortality Hazard */}
-              <AdvancedChartCard
-                title="Mortality Hazard"
-                subtitle="Hazard Probability by Income Quintile"
-                icon={Scale}
-              >
-                <BarChart data={mortalityData} barGap={0} barSize={32}>
-                  <defs>
-                    <linearGradient id="gradWhite" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#94a3b8" stopOpacity={1} />
-                      <stop offset="100%" stopColor="#cbd5e1" stopOpacity={1} />
-                    </linearGradient>
-                    <linearGradient id="gradBlack" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#0d9488" stopOpacity={1} />
-                      <stop offset="100%" stopColor="#2dd4bf" stopOpacity={1} />
-                    </linearGradient>
-                    <linearGradient id="gradAsian" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#0284c7" stopOpacity={1} />
-                      <stop offset="100%" stopColor="#38bdf8" stopOpacity={1} />
-                    </linearGradient>
-                    <linearGradient id="gradNative" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#6366f1" stopOpacity={1} />
-                      <stop offset="100%" stopColor="#818cf8" stopOpacity={1} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                  <XAxis dataKey="name" fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} dy={10} />
-                  <YAxis fontSize={10} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} unit="%" />
-                  <Tooltip
-                    cursor={{ fill: 'rgba(241, 245, 249, 0.5)' }}
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
-                  />
-                  <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
-                  <Bar dataKey="white" name="White" stackId="a" fill="url(#gradWhite)" radius={[0, 0, 4, 4]} />
-                  <Bar dataKey="black" name="Black" stackId="a" fill="url(#gradBlack)" radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="asian" name="Asian" stackId="a" fill="url(#gradAsian)" radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="native" name="Native" stackId="a" fill="url(#gradNative)" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </AdvancedChartCard>
-
-            </div>
-          </div>
-          <div className="pb-20"></div>
-        </main>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

@@ -152,8 +152,8 @@ class PatientsETL:
             dead_m = df.filter((col("gender") == "M") & ((col("age") > (req_age - 5)) & (col("age") <= req_age) & (col("death_date").isNotNull()))).count()
             dead_f = df.filter((col("gender") == "F") & ((col("age") > (req_age - 5)) & (col("age") <= req_age) & (col("death_date").isNotNull()))).count()
 
-            ratio_m = float(1 - (dead_m/(alive_m if alive_m > 0 else 1)))
-            ratio_f = float(1 - (dead_f/(alive_f if alive_f > 0 else 1)))
+            ratio_m = round(1 - (dead_m/(alive_m if alive_m > 0 else 1)), 2)
+            ratio_f = round(1 - (dead_f/(alive_f if alive_f > 0 else 1)), 2)
             
             curr_m , curr_f = round(curr_m * ratio_m, 3), round(curr_f * ratio_f, 3)
             males.append({req_age: curr_m})
@@ -230,12 +230,12 @@ class PatientsETL:
         #print(list(map(lambda x: x[0] if x[0] != 'other' else '', df.select("race").distinct().collect())))
 
 # Optional: Standalone execution
-# if __name__ == "__main__":
-#     patients_etl = PatientsETL()
-#     df_proc = patients_etl.get_patients()
-#     df_proc.show(10)
-#     print("Columns:", df_proc.columns)
-#     print(patients_etl.master.getKPIS("patients"))
-#     print(patients_etl.master.getMetrics("patients"))
-#     print(patients_etl.master.getAdvancedMetrics("patients"))
-#     print(patients_etl.testing())
+if __name__ == "__main__":
+    patients_etl = PatientsETL()
+    df_proc = patients_etl.get_patients()
+    df_proc.show(10)
+    print("Columns:", df_proc.columns)
+    print(patients_etl.master.getKPIS("patients"))
+    print(patients_etl.master.getMetrics("patients"))
+    print(patients_etl.master.getAdvancedMetrics("patients"))
+    print(patients_etl.testing())

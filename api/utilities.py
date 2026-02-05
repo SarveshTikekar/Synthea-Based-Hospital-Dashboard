@@ -13,7 +13,7 @@ main_singleton = Master()
 #Pyspark functions
 from pyspark.sql.functions import (
     current_date, current_timestamp, date_sub, sum, avg, min, max, 
-    isnotnull, isnull, datediff, year, month, col, lit
+    isnotnull, isnull, datediff, year, month, col, lit, count, count_distinct
 )
 from datetime import datetime
 
@@ -98,3 +98,20 @@ class PatientUtils:
             self.cultural_div_score_trend(), 
             self.mortality_rate_trend()
         ]
+
+class DataGenUtils:
+    def __init__(self) -> None:
+        self.df = [main_singleton.getDataframes(context) for context in ["patients", "procedures", "encounters"]]
+
+    def patientCount(self):
+        patientCount = self.df[0].count()
+        return patientCount
+    
+    def proceduresCount(self):
+        return self.df[1].count()
+
+    def encountersCount(self):
+        return self.df[2].count()
+
+    def runnerMethod(self):
+        return [{'patient_count': self.patientCount(), 'procedures_count': self.proceduresCount(), 'encounters_count': self.encountersCount()}]

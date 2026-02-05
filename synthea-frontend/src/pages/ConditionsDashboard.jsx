@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from "react";
-import Navbar from "@/components/Navbar";
 import { conditionsDashboard } from "@/api/api";
 import {
 	Activity, CheckCircle, GitMerge, Clock, Hospital, Calendar,
@@ -126,10 +125,9 @@ const ConditionsDashboard = () => {
 
 	if (loading) {
 		return (
-			<div className="flex min-h-screen w-full bg-slate-50">
-				<Navbar />
-				<div className="flex-1 flex flex-col items-center justify-center">
-					<Activity size={48} className="animate-spin text-teal-600 mb-4" />
+			<div className="flex h-96 items-center justify-center">
+				<div className="text-center">
+					<Activity size={48} className="animate-spin text-teal-600 mb-4 mx-auto" />
 					<h2 className="text-xl font-bold text-slate-700">Loading Pathology Data...</h2>
 					<p className="text-slate-400">Spark is processing ETL trends</p>
 				</div>
@@ -138,205 +136,201 @@ const ConditionsDashboard = () => {
 	}
 
 	return (
-		<div className="flex h-screen w-full bg-slate-50 text-slate-900 font-sans overflow-hidden">
-			<Navbar />
-
-			<div className="flex-1 flex flex-col h-full overflow-y-auto relative">
-				<header className="bg-white/80 backdrop-blur-md border-b border-slate-200 p-8 sticky top-0 z-20">
-					<div className="max-w-full">
-						<div className="flex items-center gap-3 mb-2">
-							<div className="p-2 bg-teal-50 rounded-lg">
-								<Stethoscope size={24} className="text-teal-600" />
-							</div>
-							<h1 className="text-3xl font-black text-slate-900 tracking-tight">Conditions & Pathology</h1>
+		<>
+			<header className="bg-white/80 backdrop-blur-md border-b border-slate-200 p-8 -mx-8 -mt-8 mb-8">
+				<div className="max-w-full">
+					<div className="flex items-center gap-3 mb-2">
+						<div className="p-2 bg-teal-50 rounded-lg">
+							<Stethoscope size={24} className="text-teal-600" />
 						</div>
-						<p className="text-slate-500 font-medium ml-12">Epidemiological trends and disease management effectiveness</p>
+						<h1 className="text-2xl font-black text-slate-900 tracking-tight">Conditions & Pathology</h1>
 					</div>
-				</header>
+					<p className="text-slate-500 font-medium ml-12">Epidemiological trends and disease management effectiveness</p>
+				</div>
+			</header>
 
-				<main className="p-8 space-y-10 max-w-[1600px] mx-auto w-full">
+			<div className="space-y-10 max-w-[1600px] mx-auto w-full">
 
-					{/* Section 1: KPIs */}
-					<KPICard kpis={kpiData} />
+				{/* Section 1: KPIs */}
+				<KPICard kpis={kpiData} />
 
-					{/* Section 2: Core Metrics */}
-					<div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+				{/* Section 2: Core Metrics */}
+				<div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-						{/* Top Disorders */}
-						<MetricsCard
-							title="Top 10 Active Disorders"
-							metrics={[]}
-							chartData={topDisorders}
-							chartType="bar"
-						>
-							<ResponsiveContainer width="100%" height={500}>
-								<BarChart layout="vertical" data={topDisorders} margin={{ left: 40 }}>
-									<CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
-									<XAxis type="number" hide />
-									<YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 11, fontWeight: 600, fill: '#64748b' }} tickLine={false} axisLine={false} />
-									<Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
-									<Bar dataKey="value" fill="url(#gradTeal)" radius={[0, 4, 4, 0]} barSize={24} />
-									<defs>
-										<linearGradient id="gradTeal" x1="0" y1="0" x2="1" y2="0">
-											<stop offset="0%" stopColor="#14b8a6" />
-											<stop offset="100%" stopColor="#0d9488" />
-										</linearGradient>
-									</defs>
-								</BarChart>
-							</ResponsiveContainer>
-						</MetricsCard>
+					{/* Top Disorders */}
+					<MetricsCard
+						title="Top 10 Active Disorders"
+						metrics={[]}
+						chartData={topDisorders}
+						chartType="bar"
+					>
+						<ResponsiveContainer width="100%" height={500}>
+							<BarChart layout="vertical" data={topDisorders} margin={{ left: 40 }}>
+								<CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
+								<XAxis type="number" hide />
+								<YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 11, fontWeight: 600, fill: '#64748b' }} tickLine={false} axisLine={false} />
+								<Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
+								<Bar dataKey="value" fill="url(#gradTeal)" radius={[0, 4, 4, 0]} barSize={24} />
+								<defs>
+									<linearGradient id="gradTeal" x1="0" y1="0" x2="1" y2="0">
+										<stop offset="0%" stopColor="#14b8a6" />
+										<stop offset="100%" stopColor="#0d9488" />
+									</linearGradient>
+								</defs>
+							</BarChart>
+						</ResponsiveContainer>
+					</MetricsCard>
 
-						{/* Chronic vs Acute */}
-						<MetricsCard
-							title="Clinical Course Distribution"
-							metrics={[{ label: "Total", value: chronicVsAcute.reduce((acc, curr) => acc + curr.value, 0) }]}
-							chartType="pie"
-						>
-							<ResponsiveContainer width="100%" height={300}>
-								<PieChart>
-									<Pie
-										data={chronicVsAcute}
-										cx="50%"
-										cy="50%"
-										innerRadius={80}
-										outerRadius={110}
-										paddingAngle={5}
-										dataKey="value"
-									>
-										{chronicVsAcute.map((entry, index) => (
-											<Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-										))}
-									</Pie>
-									<Tooltip contentStyle={{ borderRadius: '12px', border: 'none' }} />
-									<Legend verticalAlign="bottom" height={36} iconType="circle" />
-								</PieChart>
-							</ResponsiveContainer>
-						</MetricsCard>
+					{/* Chronic vs Acute */}
+					<MetricsCard
+						title="Clinical Course Distribution"
+						metrics={[{ label: "Total", value: chronicVsAcute.reduce((acc, curr) => acc + curr.value, 0) }]}
+						chartData={[]}
+						chartType="pie"
+					>
+						<ResponsiveContainer width="100%" height={300}>
+							<PieChart>
+								<Pie
+									data={chronicVsAcute}
+									cx="50%"
+									cy="50%"
+									innerRadius={80}
+									outerRadius={110}
+									paddingAngle={5}
+									dataKey="value"
+								>
+									{chronicVsAcute.map((entry, index) => (
+										<Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+									))}
+								</Pie>
+								<Tooltip contentStyle={{ borderRadius: '12px', border: 'none' }} />
+								<Legend verticalAlign="bottom" height={36} iconType="circle" />
+							</PieChart>
+						</ResponsiveContainer>
+					</MetricsCard>
 
-						{/* Comorbidity Pattern */}
-						<MetricsCard
-							title="Comorbidity Distribution"
-							metrics={[]}
-							chartData={comorbidity}
-							chartType="bar"
-						>
-							<ResponsiveContainer width="100%" height={300}>
-								<BarChart data={comorbidity}>
-									<CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-									<XAxis dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-									<YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-									<Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none' }} />
-									<Bar dataKey="value" fill="#8b5cf6" radius={[4, 4, 0, 0]} barSize={40} />
-								</BarChart>
-							</ResponsiveContainer>
-						</MetricsCard>
+					{/* Comorbidity Pattern */}
+					<MetricsCard
+						title="Comorbidity Distribution"
+						metrics={[]}
+						chartData={comorbidity}
+						chartType="bar"
+					>
+						<ResponsiveContainer width="100%" height={300}>
+							<BarChart data={comorbidity}>
+								<CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+								<XAxis dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+								<YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+								<Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none' }} />
+								<Bar dataKey="value" fill="#8b5cf6" radius={[4, 4, 0, 0]} barSize={40} />
+							</BarChart>
+						</ResponsiveContainer>
+					</MetricsCard>
 
-						{/* Recurring Disorders */}
-						<MetricsCard
-							title="Top 10 Recurring Disorders"
-							metrics={[]}
-							chartData={recurring}
-							chartType="bar"
-						>
-							<ResponsiveContainer width="100%" height={300}>
-								<BarChart data={recurring} layout="vertical" margin={{ left: 20 }}>
-									<CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
-									<XAxis type="number" hide />
-									<YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 10, fill: '#64748b' }} tickLine={false} axisLine={false} />
-									<Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none' }} />
-									<Bar dataKey="value" fill="#f43f5e" radius={[0, 4, 4, 0]} barSize={16} />
-								</BarChart>
-							</ResponsiveContainer>
-						</MetricsCard>
+					{/* Recurring Disorders */}
+					<MetricsCard
+						title="Top 10 Recurring Disorders"
+						metrics={[]}
+						chartData={recurring}
+						chartType="bar"
+					>
+						<ResponsiveContainer width="100%" height={300}>
+							<BarChart data={recurring} layout="vertical" margin={{ left: 20 }}>
+								<CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
+								<XAxis type="number" hide />
+								<YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 10, fill: '#64748b' }} tickLine={false} axisLine={false} />
+								<Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none' }} />
+								<Bar dataKey="value" fill="#f43f5e" radius={[0, 4, 4, 0]} barSize={16} />
+							</BarChart>
+						</ResponsiveContainer>
+					</MetricsCard>
 
-					</div>
+				</div>
 
-					{/* Section 3: Advanced Analysis (Resolution Efficiency) */}
-					<div className="pt-10 border-t border-slate-200">
-						<h2 className="text-2xl font-black text-slate-800 tracking-tight mb-8 flex items-center gap-3">
-							<Zap className="text-teal-600 fill-teal-600" /> Advanced Analysis
-						</h2>
+				{/* Section 3: Advanced Analysis (Resolution Efficiency) */}
+				<div className="pt-10 border-t border-slate-200">
+					<h2 className="text-2xl font-black text-slate-800 tracking-tight mb-8 flex items-center gap-3">
+						<Zap className="text-teal-600 fill-teal-600" /> Advanced Analysis
+					</h2>
 
-						<AdvancedChartCard
-							title="Disease Resolution Efficiency"
-							subtitle="Frequency vs. Avg Cure Time (Top 20 Conditions)"
-							icon={Zap}
-							rightElement={
-								<div className="flex gap-4">
-									<div className="flex items-center gap-2 text-xs text-slate-500">
-										<div className="w-2 h-2 rounded-full bg-teal-500"></div> Fastest
-									</div>
-									<div className="flex items-center gap-2 text-xs text-slate-500">
-										<div className="w-2 h-2 rounded-full bg-amber-500"></div> Chronic
-									</div>
+					<AdvancedChartCard
+						title="Disease Resolution Efficiency"
+						subtitle="Frequency vs. Avg Cure Time (Top 20 Conditions)"
+						icon={Zap}
+						rightElement={
+							<div className="flex gap-4">
+								<div className="flex items-center gap-2 text-xs text-slate-500">
+									<div className="w-2 h-2 rounded-full bg-teal-500"></div> Fastest
 								</div>
-							}
-						>
-							<ResponsiveContainer width="100%" height={400}>
-								<ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-									<CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-									<XAxis type="number" dataKey="x" name="Days to Cure" unit="d" tick={{ fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-									<YAxis type="number" dataKey="y" name="Frequency" unit=" cases" tick={{ fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-									<ZAxis type="number" dataKey="z" range={[60, 400]} />
-									<Tooltip
-										cursor={{ strokeDasharray: '3 3' }}
-										content={({ active, payload }) => {
-											if (active && payload && payload.length) {
-												const data = payload[0].payload;
-												return (
-													<div className="bg-white p-4 rounded-xl shadow-xl border border-slate-100">
-														<p className="font-bold text-slate-800 mb-2">{data.name}</p>
-														<div className="space-y-1 text-xs text-slate-500">
-															<div className="flex justify-between gap-4">
-																<span>Avg Cure Time:</span>
-																<span className="font-mono font-bold text-teal-600">{data.x} days</span>
-															</div>
-															<div className="flex justify-between gap-4">
-																<span>Total Cases:</span>
-																<span className="font-mono font-bold text-slate-700">{data.y}</span>
-															</div>
+								<div className="flex items-center gap-2 text-xs text-slate-500">
+									<div className="w-2 h-2 rounded-full bg-amber-500"></div> Chronic
+								</div>
+							</div>
+						}
+					>
+						<ResponsiveContainer width="100%" height={400}>
+							<ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+								<CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+								<XAxis type="number" dataKey="x" name="Days to Cure" unit="d" tick={{ fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+								<YAxis type="number" dataKey="y" name="Frequency" unit=" cases" tick={{ fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+								<ZAxis type="number" dataKey="z" range={[60, 400]} />
+								<Tooltip
+									cursor={{ strokeDasharray: '3 3' }}
+									content={({ active, payload }) => {
+										if (active && payload && payload.length) {
+											const data = payload[0].payload;
+											return (
+												<div className="bg-white p-4 rounded-xl shadow-xl border border-slate-100">
+													<p className="font-bold text-slate-800 mb-2">{data.name}</p>
+													<div className="space-y-1 text-xs text-slate-500">
+														<div className="flex justify-between gap-4">
+															<span>Avg Cure Time:</span>
+															<span className="font-mono font-bold text-teal-600">{data.x} days</span>
+														</div>
+														<div className="flex justify-between gap-4">
+															<span>Total Cases:</span>
+															<span className="font-mono font-bold text-slate-700">{data.y}</span>
 														</div>
 													</div>
-												);
-											}
-											return null;
-										}}
-									/>
-									<Scatter name="Conditions" data={resolutionEff} fill="#8b5cf6">
-										{resolutionEff.map((entry, index) => (
-											<Cell key={`cell-${index}`} fill={COLORS.teal[index % 2]} />
-										))}
-									</Scatter>
-								</ScatterChart>
-							</ResponsiveContainer>
-						</AdvancedChartCard>
+												</div>
+											);
+										}
+										return null;
+									}}
+								/>
+								<Scatter name="Conditions" data={resolutionEff} fill="#8b5cf6">
+									{resolutionEff.map((entry, index) => (
+										<Cell key={`cell-${index}`} fill={COLORS.teal[index % 2]} />
+									))}
+								</Scatter>
+							</ScatterChart>
+						</ResponsiveContainer>
+					</AdvancedChartCard>
 
-						<div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
-							<div className="p-4 bg-teal-50 rounded-2xl flex gap-4 items-start">
-								<div className="p-2 bg-white rounded-xl shadow-sm">
-									<Clock size={18} className="text-teal-600" />
-								</div>
-								<div>
-									<h4 className="font-bold text-slate-800 text-sm">Target Efficiency</h4>
-									<p className="text-xs text-slate-600 mt-1">Conditions on the left (low cure time) indicate effective resolution protocols.</p>
-								</div>
+					<div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+						<div className="p-4 bg-teal-50 rounded-2xl flex gap-4 items-start">
+							<div className="p-2 bg-white rounded-xl shadow-sm">
+								<Clock size={18} className="text-teal-600" />
 							</div>
-							<div className="p-4 bg-amber-50 rounded-2xl flex gap-4 items-start">
-								<div className="p-2 bg-white rounded-xl shadow-sm">
-									<AlertTriangle size={18} className="text-amber-600" />
-								</div>
-								<div>
-									<h4 className="font-bold text-slate-800 text-sm">Chronic Outliers</h4>
-									<p className="text-xs text-slate-600 mt-1">Conditions &gt;100 days represent chronic burdens requiring long-term care plans.</p>
-								</div>
+							<div>
+								<h4 className="font-bold text-slate-800 text-sm">Target Efficiency</h4>
+								<p className="text-xs text-slate-600 mt-1">Conditions on the left (low cure time) indicate effective resolution protocols.</p>
+							</div>
+						</div>
+						<div className="p-4 bg-amber-50 rounded-2xl flex gap-4 items-start">
+							<div className="p-2 bg-white rounded-xl shadow-sm">
+								<AlertTriangle size={18} className="text-amber-600" />
+							</div>
+							<div>
+								<h4 className="font-bold text-slate-800 text-sm">Chronic Outliers</h4>
+								<p className="text-xs text-slate-600 mt-1">Conditions &gt;100 days represent chronic burdens requiring long-term care plans.</p>
 							</div>
 						</div>
 					</div>
+				</div>
 
-					<div className="pb-20"></div>
-				</main>
 			</div>
-		</div>
+		</>
 	);
 };
 
