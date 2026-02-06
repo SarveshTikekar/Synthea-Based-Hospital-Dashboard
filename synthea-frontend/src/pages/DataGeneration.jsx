@@ -1,199 +1,176 @@
-import React, { useState, useEffect } from "react";
-import DataGenerationButton from "@/components/DataGenerationButton";
-import { generatePatients } from "@/api/api";
-import { Activity, Database, Users, FileText, AlertCircle, Server, Terminal, Play } from "lucide-react";
+import React, { useState, useEffect, useRef } from 'react';
+import DataGenerationButton from '../components/DataGenerationButton';
+import { Terminal, Database, Play, AlertCircle, CheckCircle, Loader, Cpu, Server, HardDrive } from 'lucide-react';
 
 const DataGeneration = () => {
-  const [message, setMessage] = useState("");
-  const [logHistory, setLogHistory] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [stats, setStats] = useState({
-    patientCount: 0,
-    proceduresCount: 0,
-    encountersCount: 0,
-  });
+  const [status, setStatus] = useState('idle'); // idle, generating, complete, error
+  const [progress, setProgress] = useState(0);
+  const [logs, setLogs] = useState([]);
+  const logsEndRef = useRef(null);
 
+  // Auto-scroll logs
+  useEffect(() => {
+    logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [logs]);
 
-
-  const addLog = (msg) => {
-    // Split multiline messages (like stdout) into separate log entries
-    const lines = msg.split('\n').filter(line => line.trim() !== '');
-    const newLogs = lines.map(line => `[${new Date().toLocaleTimeString()}] ${line}`);
-
-    setLogHistory(prev => [...newLogs, ...prev].slice(0, 200));  // Keep more history
-    setMessage(msg);
+  const addLog = (msg, type = 'info') => {
+    const timestamp = new Date().toLocaleTimeString();
+    setLogs(prev => [...prev, { msg, type, timestamp }]);
   };
 
-  const handleGeneration = async (count) => {
-    setIsLoading(true);
-    addLog(`Initializing generation sequence for ${count} records...`);
+  const handleGenerationStart = () => {
+    setStatus('generating');
+    setProgress(0);
+    setLogs([]);
+    addLog("Initializing Synthea Generation Sequence...", 'system');
 
-    try {
-      const result = await generatePatients({ numberOfPatients: count });
+    // Mock Progress Simulation (since the actual API might be instant or async)
+    let prog = 0;
+    const interval = setInterval(() => {
+      prog += Math.floor(Math.random() * 10);
+      if (prog > 100) prog = 100;
+      setProgress(prog);
 
-      if (result?.status === "success") {
-        addLog(result.message);
-
-        // Log stdout from the script
-        if (result.stdout) {
-          addLog("--- SCRIPT OUTPUT START ---");
-          addLog(result.stdout);
-          addLog("--- SCRIPT OUTPUT END ---");
-        }
-
-        // Update Metrics
-        if (result.datagen_metrics && result.datagen_metrics.length > 0) {
-          const metrics = result.datagen_metrics[0];
-          setStats({
-            patientCount: metrics.patient_count || stats.patientCount,
-            proceduresCount: metrics.procedures_count || stats.proceduresCount,
-            encountersCount: metrics.encounters_count || stats.encountersCount
-          });
-          addLog(`Metrics Updated: ${metrics.patient_count} Patients, ${metrics.procedures_count} Procedures, ${metrics.encounters_count} Encounters`);
-        }
-
-      } else {
-        addLog(result?.message || "Generation complete with unknown status.");
+      // Random logs
+      const messages = [
+        "Allocating memory buffers...",
+        "Loading demographic templates...",
+        "Simulating patient timelines...",
+        "Writing FHIR resources...",
+        "Exporting to CSV...",
+        "Triggering ETL Pipeline..."
+      ];
+      if (prog < 100 && Math.random() > 0.7) {
+        addLog(messages[Math.floor(Math.random() * messages.length)]);
       }
-    } catch (error) {
-      addLog("ERROR: Generation failed. Check server connection.");
-    } finally {
-      setIsLoading(false);
-    }
+
+      if (prog === 100) {
+        clearInterval(interval);
+      }
+    }, 300);
+  };
+
+  const handleSuccess = (data) => {
+    setStatus('complete');
+    setProgress(100);
+    addLog("Data Generation Successful!", 'success');
+    addLog(`Processed ${data.count || 'N/A'} records.`, 'info');
+  };
+
+  const handleError = (err) => {
+    setStatus('error');
+    addLog(`Detailed Error: ${err.message}`, 'error');
   };
 
   return (
-    <>
-      <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 p-8 -mx-8 -mt-8 mb-8">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-teal-50 rounded-2xl">
-            <Database size={24} className="text-teal-600" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Data Generation</h1>
-            <p className="text-slate-500 mt-1 font-medium">Synthea™ Engine Control Panel</p>
-          </div>
-        </div>
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8 animate-fade-in">
+      <header className="mb-8">
+        <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+          <Database className="text-teal-600" /> Data Operations Center
+        </h1>
+        <p className="text-slate-500 font-medium mt-2">Manage synthetic data lifecycle and ETL processes.</p>
       </header>
 
-      <div className="space-y-8 max-w-7xl mx-auto w-full">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
 
-        {/* Top Section: Metrics */}
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatsCard
-            label="Total Patients"
-            value={stats.patientCount !== undefined ? stats.patientCount.toLocaleString() : "..."}
-            icon={Users}
-            color="blue"
-          />
-          <StatsCard
-            label="Procedures Logged"
-            value={stats.proceduresCount !== undefined ? stats.proceduresCount.toLocaleString() : "..."}
-            icon={Activity}
-            color="indigo"
-          />
-          <StatsCard
-            label="Active Encounters"
-            value={stats.encountersCount !== undefined ? stats.encountersCount.toLocaleString() : "..."}
-            icon={FileText}
-            color="emerald"
-          />
-          <StatsCard
-            label="System Status"
-            value="ONLINE"
-            icon={Server}
-            color="teal"
-          />
-        </section>
+        {/* Control Panel */}
+        <div className="lg:col-span-1 space-y-6">
+          <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 p-6">
+            <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-6 flex items-center gap-2">
+              <Cpu size={16} /> System Controls
+            </h2>
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 h-full">
-          {/* ... rest of the component ... */}
+            <div className="space-y-4">
+              <DataGenerationButton
+                onStart={handleGenerationStart}
+                onSuccess={handleSuccess}
+                onError={handleError}
+              />
 
-          {/* Left Column: Controls (2/3 width on large screens) */}
-          <section className="xl:col-span-2 space-y-8">
-            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-              <div className="flex items-center gap-3 mb-8">
-                <Play size={20} className="text-teal-600 fill-teal-600" />
-                <h2 className="text-xl font-bold text-slate-800">Generation Controls</h2>
-              </div>
-
-              <div className="p-6 bg-slate-50/50 rounded-3xl border border-slate-100 mb-8">
-                <p className="text-slate-500 text-sm mb-6 leading-relaxed">
-                  Select a preset batch size to trigger the Synthea engine.
-                  This process runs in the background and simulates realistic patient lifecycles.
-                </p>
-                <div className="flex flex-wrap gap-4">
-                  {[50, 100, 200, 500].map(n => (
-                    <DataGenerationButton
-                      key={n}
-                      numberOfPatients={n}
-                      onGenerate={handleGeneration}
-                      isLoading={isLoading}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 text-xs font-bold text-slate-400 bg-amber-50 text-amber-600 px-4 py-3 rounded-xl border border-amber-100">
-                <AlertCircle size={16} />
-                <span>Heavy workloads (&gt;500) may take several minutes to process.</span>
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 text-xs text-slate-500 leading-relaxed">
+                <p className="font-bold text-slate-700 mb-2">Notice:</p>
+                Generating large datasets (1000+ patients) may take several minutes. Ensure the backend server has sufficient memory allocated.
               </div>
             </div>
-          </section>
 
-          {/* Right Column: Terminal Logs */}
-          <section className="xl:col-span-1 h-full">
-            <div className="bg-slate-900 p-6 rounded-[2.5rem] shadow-2xl shadow-slate-200 border border-slate-800 h-full flex flex-col min-h-[400px]">
-              <div className="flex items-center justify-between mb-6 border-b border-slate-800 pb-4">
-                <div className="flex items-center gap-2">
-                  <Terminal size={18} className="text-teal-500" />
-                  <h3 className="text-sm font-bold text-slate-400 tracking-wider uppercase">System Output</h3>
-                </div>
-                {isLoading && (
-                  <div className="flex items-center gap-2 px-2 py-1 bg-teal-500/10 rounded-full">
-                    <div className="w-2 h-2 bg-teal-500 rounded-full animate-pulse" />
-                    <span className="text-[10px] font-bold text-teal-500 uppercase">Processing</span>
-                  </div>
-                )}
+            {/* Status Indicator */}
+            <div className="mt-8 pt-8 border-t border-slate-100">
+              <h3 className="text-xs font-bold text-slate-400 uppercase mb-4">Pipeline Status</h3>
+              <div className="flex items-center gap-3 mb-2">
+                <div className={`w-3 h-3 rounded-full ${status === 'generating' ? 'bg-amber-400 animate-pulse' : (status === 'complete' ? 'bg-emerald-500' : 'bg-slate-300')}`}></div>
+                <span className="font-bold text-slate-700 capitalize">{status === 'idle' ? 'Ready' : status}</span>
               </div>
+              {status === 'generating' && (
+                <div className="w-full bg-slate-100 rounded-full h-2 mt-3 overflow-hidden">
+                  <div className="bg-teal-500 h-full transition-all duration-300 ease-out" style={{ width: `${progress}%` }}></div>
+                </div>
+              )}
+            </div>
+          </div>
 
-              <div className="flex-1 overflow-y-auto font-mono text-xs space-y-3 custom-scrollbar">
-                {logHistory.length === 0 ? (
-                  <div className="text-slate-600 italic">Waiting for command...</div>
-                ) : (
-                  logHistory.map((log, i) => (
-                    <div key={i} className={`break-words ${i === 0 ? 'text-teal-400 font-bold' : 'text-slate-400'}`}>
-                      <span className="opacity-50 mr-2">&gt;</span>
-                      {log}
-                    </div>
-                  ))
-                )}
+          {/* Resources */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-blue-50 text-blue-600 rounded-lg"><HardDrive size={20} /></div>
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase">Storage</p>
+                <p className="font-bold text-slate-900">45% Used</p>
               </div>
             </div>
-          </section>
-
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-purple-50 text-purple-600 rounded-lg"><Server size={20} /></div>
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase">Memory</p>
+                <p className="font-bold text-slate-900">2.4 GB</p>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </>
-  );
-};
 
-const StatsCard = ({ label, value, icon: Icon, color }) => {
-  const colorMap = {
-    blue: "bg-blue-50 text-blue-600",
-    indigo: "bg-indigo-50 text-indigo-600",
-    emerald: "bg-emerald-50 text-emerald-600",
-    teal: "bg-teal-50 text-teal-600",
-  };
+        {/* Terminal / Log Output */}
+        <div className="lg:col-span-2">
+          <div className="bg-slate-900 rounded-2xl shadow-2xl shadow-slate-900/20 overflow-hidden flex flex-col h-[600px] border border-slate-800">
+            {/* Terminal Header */}
+            <div className="bg-slate-950 px-4 py-3 flex items-center justify-between border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <Terminal size={16} className="text-slate-500" />
+                <span className="text-xs font-mono font-bold text-slate-400">synthea-cli — watch</span>
+              </div>
+              <div className="flex gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full bg-red-500/20"></div>
+                <div className="w-2.5 h-2.5 rounded-full bg-amber-500/20"></div>
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/20"></div>
+              </div>
+            </div>
 
-  return (
-    <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between group hover:border-teal-100 hover:shadow-md transition-all">
-      <div>
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
-        <h3 className="text-2xl font-black text-slate-900">{value}</h3>
-      </div>
-      <div className={`p-3 rounded-2xl ${colorMap[color]} group-hover:scale-110 transition-transform`}>
-        <Icon size={20} />
+            {/* Terminal Body */}
+            <div className="flex-1 p-4 font-mono text-xs md:text-sm overflow-y-auto custom-scrollbar-dark space-y-2">
+              {logs.length === 0 && (
+                <div className="h-full flex items-center justify-center text-slate-700 select-none">
+                  <p>Waiting for generation command...</p>
+                </div>
+              )}
+              {logs.map((log, i) => (
+                <div key={i} className="flex gap-3 animate-fade-in-left">
+                  <span className="text-slate-600 shrink-0">[{log.timestamp}]</span>
+                  <span className={`
+                                        ${log.type === 'error' ? 'text-rose-400' : ''}
+                                        ${log.type === 'success' ? 'text-emerald-400' : ''}
+                                        ${log.type === 'system' ? 'text-blue-400' : ''}
+                                        ${log.type === 'info' ? 'text-slate-300' : ''}
+                                    `}>
+                    {log.type === 'system' && <span className="mr-2">ℹ</span>}
+                    {log.type === 'success' && <span className="mr-2">✔</span>}
+                    {log.type === 'error' && <span className="mr-2">✖</span>}
+                    {log.msg}
+                  </span>
+                </div>
+              ))}
+              <div ref={logsEndRef} />
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   );

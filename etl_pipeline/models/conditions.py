@@ -15,3 +15,10 @@ class conditionMetrics(BaseModel):
     top_10_recurring_disorders: List[Dict[str, int]] = Field(default_factory=list, description="List of top 10 recurring disorders with their counts")
     commorbidity_pattern: List[Dict[int, int]] = Field(default_factory=list, description="Frequency of patients with multiple co-occurring conditions")
     clinical_gravity: List[Dict[str, float]]
+
+class conditionAdvancedMetrics(BaseModel):
+    average_condition_recurrence_gap: List[Dict[str, int]] = Field(default_factory=list, description="Average time gap between recurrences for top recurring conditions")
+    incidence_velocity: Dict[str, Dict[str, int]] = Field(default_factory=dict, description="Rate of new condition occurrences over time for top conditions")
+    commordity_cooccurence: List[Tuple[str, str, int]] = Field(default_factory=list, description="List of tuples containing pairs of co-occurring conditions and their frequency")
+    disease_transition_patterns: List[Tuple[str, str, int, float]] = Field(default_factory=list, description="List of tuples containing pairs of conditions where one condition often leads to another and their frequency") 
+    age_based_burden: List[Dict[str, int]] = Field(default_factory=list, description="Distribution of condition count by age groups (Health Cliff)") 

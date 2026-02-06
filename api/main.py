@@ -193,14 +193,15 @@ def conditions_dashboard():
         if main_singleton.getDataframes("conditions") is None:
             conditions_obj = ConditionsETL()
 
-        conditions_data = [main_singleton.getKPIS("conditions"), main_singleton.getMetrics("conditions")]
+        conditions_data = [main_singleton.getKPIS("conditions"), main_singleton.getMetrics("conditions"), main_singleton.getAdvancedMetrics("conditions")]
 
         if conditions_data is None:
             return jsonify({'message': 'Data not found'}), 404
         
         return jsonify({'message': 'Data Loaded successfully', 
                         'kpis': conditions_data[0].model_dump(), 
-                        'metrics': conditions_data[1].model_dump()})
+                        'metrics': conditions_data[1].model_dump(),
+                        'advanced_metrics': conditions_data[2].model_dump()})
 
     except Exception as e:
         return jsonify({'error': str(e)}), 400

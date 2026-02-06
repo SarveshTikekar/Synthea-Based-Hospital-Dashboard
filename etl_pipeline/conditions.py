@@ -1,10 +1,13 @@
-# conditions_etl.py
-from pyspark.sql.functions import col, to_date, regexp_extract, isnull, mean, countDistinct, sum, coalesce, current_date, datediff, avg, when, date_sub, count, trim, floor, lit, round
+from pyspark.sql.functions import col, to_date, regexp_extract, isnull, mean, countDistinct, sum, coalesce, current_date, datediff, avg, when, date_sub, count, trim, floor, lit, round, current_date, month, create_map, desc, lag, year, concat 
+from pyspark.sql import Window
+import itertools
+from itertools import chain
 from etl_pipeline.master import Master
 import os
 import math
-from .models.conditions import conditionKPIS, conditionMetrics
- 
+from .models.conditions import conditionKPIS, conditionMetrics, conditionAdvancedMetrics
+
+month_to_num_mapping = {1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr", 5: "May", 6: "Jun", 7: "Jul", 8: "Aug", 9: "Sep", 10: "Oct", 11: "Nov", 12: "Dec"}
 class ConditionsETL:
 
     def __init__(self) -> None:
@@ -12,6 +15,7 @@ class ConditionsETL:
         self.etl()
         self.calculateKPIS()
         self.calculateMetrics()
+        self.calculateAdvancedMetrics()
 
     def etl(self):
         """
@@ -108,7 +112,6 @@ class ConditionsETL:
         chron_vs_ac = [{item['clinical_course']: item['ca_count'] for item in collection2}]
 
         #Metric-3 Disease resolution efficiency
-
         collection = df.filter((col("associated_semantics") == "disorder") & (col("date_of_abetment").isNotNull())) \
                         .withColumn("days_for_treatment", datediff(col("date_of_abetment"), col("condition_record_date")))\
                         .groupBy("medical_concepts").agg(
@@ -119,10 +122,9 @@ class ConditionsETL:
                         .withColumn("avg_time_to_cure", when(col("avg_time_to_cure") == 0, 1).otherwise(col("avg_time_to_cure"))) \
                         .orderBy(col("avg_time_to_cure").asc(), col("frequency").desc()).limit(20).rdd.map(tuple).collect()
         
-        disease_resolution_top_20 = [(item[0], item[1], item[2]) for item in collection]
+        disease_resolution_top_20 = sorted([(item[0], int(item[1]), int(item[2])) for item in collection], key=lambda x: -x[2])
 
         #Metric-4 Top 10 recurring disorders
-
         collection = df.filter((col("associated_semantics") == "disorder")) \
                         .groupBy("uuid", "medical_concepts") \
                         .agg(
@@ -136,7 +138,6 @@ class ConditionsETL:
         top_10_recurr_disorders = [{item["medical_concepts"]: item["total_recurring"]} for item in collection2]
 
         #Metric-5 Comorbidity pattern: Frequency of patients with multiple co-occurring conditions
-
         collection = df.filter((col("associated_semantics") == "disorder") & (col("date_of_abetment").isNull())) \
                         .groupBy("uuid").agg(
 
@@ -148,9 +149,7 @@ class ConditionsETL:
         collection2 = [row.asDict() for row in collection]
         commor_pattern = [{item['con_count']: item['c2'] for item in collection2}]
 
-        #Metric 6- Top 10 conditions having highest clinical gravity score
-
-        
+        #Metric 6- Top 10 conditions having highest clinical gravity score 
         active_df = df.filter(col("date_of_abetment").isNull())
 
         patient_load = active_df.groupBy("uuid").agg(
@@ -173,14 +172,116 @@ class ConditionsETL:
         self.master.setMetrics("conditions",conditionMetrics(top_disorder_conditions=top_5_live_disorders, chronic_vs_acute=chron_vs_ac, disease_resolution_efficiency=disease_resolution_top_20, top_10_recurring_disorders=top_10_recurr_disorders, commorbidity_pattern=commor_pattern, clinical_gravity=clinical_gravity))
         
     def calculateAdvancedMetrics(self):
-        pass
+        df = self.master.getDataframes("conditions")
+
+        #Advanced Metric 1: Incidence velocity of new conditions over time (Restored)
+        inc_velocity = {}
+        mapping_expr = create_map([lit(x) for x in chain(*month_to_num_mapping.items())])
+        df = df.withColumn("record_month", mapping_expr.getItem(month(col("condition_record_date"))))
+        
+        # Filter for valid keys
+        df_velocity = df.filter(col("medical_concepts").isNotNull() & (col("medical_concepts") != "") & col("record_month").isNotNull())
+
+        for diseaseRow in df_velocity.select("medical_concepts").distinct().collect():
+            filtered_list = {row.record_month: row.diseases_count_for_month for row in df_velocity.filter(col("medical_concepts") == diseaseRow[0]) \
+                        .groupBy("record_month") \
+                        .agg(count("*").alias("diseases_count_for_month")).collect()}
+            inc_velocity[diseaseRow[0]] = filtered_list  
+        
+        #Advanced Metric 2: Comorbidity co-occurrence
+        df_concepts = df.select("uuid", "medical_concepts").distinct()
+
+        co_occurrence_df = df_concepts.alias("df1") \
+            .join(
+                df_concepts.alias("df2"),
+                (col("df1.uuid") == col("df2.uuid")) & 
+                (col("df1.medical_concepts") < col("df2.medical_concepts"))
+            ) \
+            .groupBy("df1.medical_concepts", "df2.medical_concepts") \
+            .count()
+
+        commorb_coocu = [(row[0], row[1], row[2]) for row in co_occurrence_df.collect()]
+
+        #Advanced Metric 3: Disease transition patterns
+        df_clean = df.select("uuid", col("medical_concepts").alias("concept"), col("condition_record_date").cast("date")).distinct()
+
+        trajectory_counts = df_clean.alias("A").join(
+            df_clean.alias("B"),
+            (col("A.uuid") == col("B.uuid")) &
+            (col("A.concept") != col("B.concept")) &
+            (col("B.condition_record_date") > col("A.condition_record_date")) &
+            (datediff(col("B.condition_record_date"), col("A.condition_record_date")) <= 365)
+        ).groupBy(col("A.concept").alias("concept_A"), col("B.concept").alias("concept_B")).count()
+
+        window_spec = Window.partitionBy("concept_A")
+
+        trajectory_with_prob = trajectory_counts.withColumn(
+            "total_A_outcomes", sum(col("count")).over(window_spec)
+        ).withColumn(
+            "probability", round(col("count") / col("total_A_outcomes"), 2) # Rounding here is faster
+        )
+
+        dis_trans_pat = sorted([
+            (row["concept_A"], row["concept_B"], row["count"], row["probability"]) 
+            for row in trajectory_with_prob.collect()
+        ], key=lambda x: (-x[2], -x[3]))
+
+        #Advanced Metric 4: Average time gap between recurrences (Top 10)
+        window_spec = Window.partitionBy("uuid", "medical_concepts").orderBy("condition_record_date")
+
+        df_with_gaps = df.withColumn("prev_episode_end", lag("date_of_abetment").over(window_spec))
+
+        df_with_gaps = df_with_gaps.withColumn("gap_days", 
+            datediff(col("condition_record_date"), col("prev_episode_end"))
+        )
+
+        avg_gap_metric = (df_with_gaps
+            .filter(col("gap_days") > 0)
+            .groupBy("medical_concepts")
+            .agg(avg("gap_days").alias("avg_recurrence_gap"))
+            .orderBy(desc("avg_recurrence_gap"))
+        )
+        avg_cond_recurr_gap = sorted([{row[0]: int(row[1])} for row in avg_gap_metric.collect()], reverse=True, key=lambda x: list(x.values())[0])
+
+        #Advanced Metric 5: Age-Based Disease Burden (Health Cliff)
+        patients_df = self.master.getDataframes("patients")
+        if patients_df is None:
+            # Fallback: Load Patients if not present (e.g. standalone run)
+            from .patients import PatientsETL
+            # Avoid full init if possible to save time, but safer to just run it once
+            p_etl = PatientsETL() 
+            patients_df = self.master.getDataframes("patients")
+
+        # Join to get birth_date
+        df_age = df.join(patients_df.select("uuid", "birth_date"), "uuid", "inner")
+        
+        # Calculate age at condition onset
+        df_age = df_age.withColumn("age_at_onset", floor(datediff(col("condition_record_date"), col("birth_date"))/365.25))
+
+        # Filter invalid ages
+        df_age = df_age.filter((col("age_at_onset") >= 0) & (col("age_at_onset") < 120))
+
+        # Binning (10-year intervals)
+        df_age = df_age.withColumn("age_bin_start", (floor(col("age_at_onset")/10) * 10).cast("int"))
+        
+        age_burden_df = df_age.groupBy("age_bin_start").agg(count("*").alias("count")).orderBy("age_bin_start")
+        
+        # Format as "0-9", "10-19" etc.
+        age_based_burden = [
+            {f"{row['age_bin_start']}-{row['age_bin_start']+9}": row['count']} 
+            for row in age_burden_df.collect()
+        ]
+
+        self.master.setAdvancedMetrics("conditions", conditionAdvancedMetrics(average_condition_recurrence_gap=avg_cond_recurr_gap, incidence_velocity=inc_velocity, commordity_cooccurence=commorb_coocu, disease_transition_patterns=dis_trans_pat, age_based_burden=age_based_burden))
+
 
     def test(self):
         df = self.master.getDataframes("conditions")
-        distinct_conditions = list(map(lambda x: x[0], df.select("medical_concepts").distinct().collect()))
-        print(distinct_conditions, len(distinct_conditions), sep='\n')
-
+        #distinct_conditions = list(map(lambda x: x[0], df.select("medical_concepts").distinct().collect()))
+        #print(distinct_conditions, len(distinct_conditions), sep='\n')
         #df.show(10)
+        print(df.select(col("medical_concepts").alias("mc1")).crossJoin(df.select(col("medical_concepts").alias("mc2"))) \
+              .filter(col("mc1") != col("mc2")).select("mc1", "mc2"))
         
 # Optional: Standalone execution
 #if __name__ == "__main__":
@@ -190,4 +291,5 @@ class ConditionsETL:
 #    print(conditions_etl.master.getKPIS("conditions"))
 #    print(conditions_etl.master.getMetrics("conditions"))
 #    print(conditions_etl.test())
+#    print(conditions_etl.master.getAdvancedMetrics("conditions"))
 #    print("Columns:", df_proc.columns)
