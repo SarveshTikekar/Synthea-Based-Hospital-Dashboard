@@ -10,7 +10,8 @@ import {
     Menu,
     X,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    Stethoscope
 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
@@ -29,6 +30,7 @@ const Sidebar = ({ isOpen, setIsOpen, isMobile }) => {
         { name: 'Main Dashboard', path: '/dashboard', icon: LayoutDashboard },
         { name: 'Patient View', path: '/patient_dashboard', icon: Users },
         { name: 'Conditions', path: '/conditions_dashboard', icon: Activity },
+        { name: 'Encounters', path: '/encounters_dashboard', icon: Stethoscope },
         { name: 'Allergies', path: '/allergies_dashboard', icon: AlertCircle },
         { name: 'Data Generation', path: '/data_generation', icon: Database },
     ];

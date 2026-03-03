@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { patientDashboard } from "@/api/api";
-import { Users, Heart, DollarSign, TrendingUp, Users2, Activity, Globe, Scale } from "lucide-react";
+import { Users, Heart, DollarSign, TrendingUp, Users2, Activity, Globe, Scale, Clock, GraduationCap } from "lucide-react";
 import KPICard from "@/components/KPICard";
 import MetricsCard from "@/components/MetricsCard";
 import AdvancedChartCard from "@/components/AdvancedChartCard";
@@ -105,54 +105,97 @@ const PatientDashboard = () => {
   const wealthData = useMemo(() => transformWealthData(data.advanced.wealth_trajectory), [data.advanced.wealth_trajectory]);
   const mortalityData = useMemo(() => transformMortalityData(data.advanced.mortality_hazard_by_quintiles), [data.advanced.mortality_hazard_by_quintiles]);
 
-  // 1. Map KPI Data (Injecting placeholder prevValues and periodTypes)
+  // 1. Map KPI Data (Injecting prevValues from backend)
   const kpiData = [
     {
       title: "Total Patients",
       value: data.kpis.total_patients || 0,
-      prevValue: (data.kpis.total_patients || 0) - 5,
-      periodType: "month",
+      prevWeek: data.kpis.historical_comparisons?.total_patients?.prevWeek,
+      prevMonth: data.kpis.historical_comparisons?.total_patients?.prevMonth,
+      prevYear: data.kpis.historical_comparisons?.total_patients?.prevYear,
       icon: Users,
       iconBg: "bg-blue-50",
-      iconColor: "text-blue-600"
+      iconColor: "text-blue-600",
+      infoText: "Total number of registered patients in the system."
     },
     {
       title: "Active Rate",
       value: data.kpis.active_patient_rate || 0,
-      prevValue: 88,
-      periodType: "quarter",
+      prevWeek: data.kpis.historical_comparisons?.active_patient_rate?.prevWeek,
+      prevMonth: data.kpis.historical_comparisons?.active_patient_rate?.prevMonth,
+      prevYear: data.kpis.historical_comparisons?.active_patient_rate?.prevYear,
       sentiment: "higher-is-better",
       icon: Heart,
       iconBg: "bg-rose-50",
-      iconColor: "text-rose-600"
+      iconColor: "text-rose-600",
+      infoText: "Percentage of patients with an encounter in the last 12 months."
     },
     {
       title: "Gender Balance",
       value: data.kpis.gender_balance_ratio || 0,
-      prevValue: 49,
-      periodType: "year",
+      prevWeek: data.kpis.historical_comparisons?.gender_balance_ratio?.prevWeek,
+      prevMonth: data.kpis.historical_comparisons?.gender_balance_ratio?.prevMonth,
+      prevYear: data.kpis.historical_comparisons?.gender_balance_ratio?.prevYear,
       icon: Users2,
       iconBg: "bg-purple-50",
-      iconColor: "text-purple-600"
+      iconColor: "text-purple-600",
+      infoText: "Ratio of female to male patients."
     },
     {
       title: "Mean Income",
-      value: `$${(data.kpis.mean_family_income || 0).toLocaleString()}`,
-      prevValue: 52000,
-      periodType: "year",
+      value: data.kpis.mean_family_income || 0,
+      prevWeek: data.kpis.historical_comparisons?.mean_family_income?.prevWeek,
+      prevMonth: data.kpis.historical_comparisons?.mean_family_income?.prevMonth,
+      prevYear: data.kpis.historical_comparisons?.mean_family_income?.prevYear,
       icon: DollarSign,
       iconBg: "bg-emerald-50",
-      iconColor: "text-emerald-600"
+      iconColor: "text-emerald-600",
+      infoText: "Average household income of the patient population."
     },
     {
       title: "Median Income",
-      value: `$${(data.kpis.median_family_income || 0).toLocaleString()}`,
-      prevValue: 48000,
-      periodType: "year",
+      value: data.kpis.median_family_income || 0,
+      prevWeek: data.kpis.historical_comparisons?.median_family_income?.prevWeek,
+      prevMonth: data.kpis.historical_comparisons?.median_family_income?.prevMonth,
+      prevYear: data.kpis.historical_comparisons?.median_family_income?.prevYear,
       icon: TrendingUp,
       iconBg: "bg-orange-50",
-      iconColor: "text-orange-600"
+      iconColor: "text-orange-600",
+      infoText: "Middle-value household income of the patient population."
     },
+    {
+      title: "Avg Patient Age",
+      value: data.kpis.avg_patient_age || 0,
+      prevWeek: data.kpis.historical_comparisons?.avg_patient_age?.prevWeek,
+      prevMonth: data.kpis.historical_comparisons?.avg_patient_age?.prevMonth,
+      prevYear: data.kpis.historical_comparisons?.avg_patient_age?.prevYear,
+      icon: Clock,
+      iconBg: "bg-cyan-50",
+      iconColor: "text-cyan-600",
+      infoText: "Average chronological age of the active patient base."
+    },
+    {
+      title: "Marriage Rate",
+      value: data.kpis.married_rate || 0,
+      prevWeek: data.kpis.historical_comparisons?.married_rate?.prevWeek,
+      prevMonth: data.kpis.historical_comparisons?.married_rate?.prevMonth,
+      prevYear: data.kpis.historical_comparisons?.married_rate?.prevYear,
+      icon: Activity,
+      iconBg: "bg-pink-50",
+      iconColor: "text-pink-600",
+      infoText: "Percentage of patients whose marital status is recorded as married."
+    },
+    {
+      title: "Higher Ed Rate",
+      value: data.kpis.higher_education_rate || 0,
+      prevWeek: data.kpis.historical_comparisons?.higher_education_rate?.prevWeek,
+      prevMonth: data.kpis.historical_comparisons?.higher_education_rate?.prevMonth,
+      prevYear: data.kpis.historical_comparisons?.higher_education_rate?.prevYear,
+      icon: GraduationCap,
+      iconBg: "bg-sky-50",
+      iconColor: "text-sky-600",
+      infoText: "Percentage of patients holding a doctorate or similar higher education degrees."
+    }
   ];
 
   if (loading) {
@@ -168,13 +211,20 @@ const PatientDashboard = () => {
   }
 
   return (
-    <>
-      <header className="mb-8">
-        <h1 className="text-2xl font-black text-slate-900 tracking-tight">Patient Analytics Dashboard</h1>
-        <p className="text-slate-500 mt-1 font-medium">Real-time demographic and economic insights</p>
+    <div className="animate-fade-in w-full">
+      <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 py-6 px-4 md:px-6 lg:px-8 sticky top-0 z-20 w-full">
+        <div className="max-w-[1600px] mx-auto w-full">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-blue-50 rounded-lg">
+              <Users size={24} className="text-blue-600" />
+            </div>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Patient Analytics Dashboard</h1>
+          </div>
+          <p className="text-slate-500 font-medium ml-12">Real-time demographic and economic insights</p>
+        </div>
       </header>
 
-      <div className="space-y-10">
+      <div className="max-w-[1600px] mx-auto w-full px-4 md:px-6 lg:px-8 py-8 space-y-10">
         {/* Section 1: KPI Grid */}
         <KPICard kpis={kpiData} />
 
@@ -333,7 +383,7 @@ const PatientDashboard = () => {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

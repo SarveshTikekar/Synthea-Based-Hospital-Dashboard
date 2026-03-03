@@ -20,6 +20,7 @@ from etl_pipeline.patients import PatientsETL
 from etl_pipeline.conditions import ConditionsETL
 from etl_pipeline.procedures import ProceduresETL
 from etl_pipeline.allergies import AllergiesETL
+from etl_pipeline.encounters import EncountersETL
 
 # --- Flask App Initialization ---
 app = Flask(__name__)
@@ -202,6 +203,25 @@ def conditions_dashboard():
                         'kpis': conditions_data[0].model_dump(), 
                         'metrics': conditions_data[1].model_dump(),
                         'advanced_metrics': conditions_data[2].model_dump()})
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/encounters_dashboard', methods=['GET'])
+def encounters_dashboard():
+    try:
+        if main_singleton.getDataframes("encounters") is None:
+            encounters_obj = EncountersETL()
+
+        encounters_data = [main_singleton.getKPIS("encounters"), main_singleton.getMetrics("encounters"), main_singleton.getAdvancedMetrics("encounters")]
+
+        if encounters_data is None:
+            return jsonify({'message': 'Data not found'}), 404
+        
+        return jsonify({'message': 'Data Loaded successfully', 
+                        'kpis': encounters_data[0].model_dump(), 
+                        'metrics': encounters_data[1].model_dump(),
+                        'advanced_metrics': encounters_data[2].model_dump()})
 
     except Exception as e:
         return jsonify({'error': str(e)}), 400

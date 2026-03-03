@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { conditionsDashboard } from "@/api/api";
 import {
 	Activity, CheckCircle, GitMerge, Clock, Hospital,
-	Stethoscope, Zap, TrendingUp, Search, X, Info, Filter, Users, Brain, AlertTriangle
+	Stethoscope, Zap, TrendingUp, Search, X, Info, Filter, Users, Brain, AlertTriangle, FileText, Fingerprint, RefreshCcw
 } from "lucide-react";
 import KPICard from "@/components/KPICard";
 import MetricsCard from "@/components/MetricsCard";
@@ -175,11 +175,78 @@ const ConditionsDashboard = () => {
 
 	// --- KPI Configuration ---
 	const kpiData = [
-		{ title: "Active Burden", value: data.kpis.current_active_burden || 0, icon: Activity, iconBg: "bg-rose-50", iconColor: "text-rose-600", periodType: "active" },
-		{ title: "Recovery Rate", value: `${(data.kpis.global_recovery_rate || 0).toFixed(1)}%`, icon: CheckCircle, iconBg: "bg-teal-50", iconColor: "text-teal-600", sentiment: "higher-is-better" },
-		{ title: "Avg Complexity", value: data.kpis.patient_complexity_score || 0, icon: GitMerge, iconBg: "bg-purple-50", iconColor: "text-purple-600", periodType: "conds/patient" },
-		{ title: "Avg Time to Cure", value: `${data.kpis.average_time_to_cure || 0}d`, icon: Clock, iconBg: "bg-amber-50", iconColor: "text-amber-600", sentiment: "lower-is-better" },
-		{ title: "Admissions (30d)", value: data.kpis.admission_rate_last_30_days || 0, icon: Hospital, iconBg: "bg-blue-50", iconColor: "text-blue-600" }
+		{
+			title: "Active Burden",
+			value: data.kpis.current_active_burden || 0,
+			prevWeek: data.kpis.historical_comparisons?.current_active_burden?.prevWeek,
+			prevMonth: data.kpis.historical_comparisons?.current_active_burden?.prevMonth,
+			prevYear: data.kpis.historical_comparisons?.current_active_burden?.prevYear,
+			icon: Activity, iconBg: "bg-rose-50", iconColor: "text-rose-600",
+			infoText: "Current count of active untreated conditions across all patients."
+		},
+		{
+			title: "Recovery Rate",
+			value: data.kpis.global_recovery_rate || 0,
+			prevWeek: data.kpis.historical_comparisons?.global_recovery_rate?.prevWeek,
+			prevMonth: data.kpis.historical_comparisons?.global_recovery_rate?.prevMonth,
+			prevYear: data.kpis.historical_comparisons?.global_recovery_rate?.prevYear,
+			icon: CheckCircle, iconBg: "bg-teal-50", iconColor: "text-teal-600", sentiment: "higher-is-better",
+			infoText: "Percentage of diagnosed conditions that have been fully resolved."
+		},
+		{
+			title: "Avg Complexity",
+			value: data.kpis.patient_complexity_score || 0,
+			prevWeek: data.kpis.historical_comparisons?.patient_complexity_score?.prevWeek,
+			prevMonth: data.kpis.historical_comparisons?.patient_complexity_score?.prevMonth,
+			prevYear: data.kpis.historical_comparisons?.patient_complexity_score?.prevYear,
+			icon: GitMerge, iconBg: "bg-purple-50", iconColor: "text-purple-600",
+			infoText: "Average number of co-occurring conditions per patient."
+		},
+		{
+			title: "Avg Time to Cure",
+			value: data.kpis.average_time_to_cure || 0,
+			prevWeek: data.kpis.historical_comparisons?.average_time_to_cure?.prevWeek,
+			prevMonth: data.kpis.historical_comparisons?.average_time_to_cure?.prevMonth,
+			prevYear: data.kpis.historical_comparisons?.average_time_to_cure?.prevYear,
+			icon: Clock, iconBg: "bg-amber-50", iconColor: "text-amber-600", sentiment: "lower-is-better",
+			infoText: "Average days elapsed between condition diagnosis and resolution."
+		},
+		{
+			title: "Admissions (30d)",
+			value: data.kpis.admission_rate_last_30_days || 0,
+			prevWeek: data.kpis.historical_comparisons?.admission_rate_last_30_days?.prevWeek,
+			prevMonth: data.kpis.historical_comparisons?.admission_rate_last_30_days?.prevMonth,
+			prevYear: data.kpis.historical_comparisons?.admission_rate_last_30_days?.prevYear,
+			icon: Hospital, iconBg: "bg-blue-50", iconColor: "text-blue-600",
+			infoText: "Total number of hospital admissions related to conditions in the last 30 days."
+		},
+		{
+			title: "Total Diagnoses",
+			value: data.kpis.total_diagnoses || 0,
+			prevWeek: data.kpis.historical_comparisons?.total_diagnoses?.prevWeek,
+			prevMonth: data.kpis.historical_comparisons?.total_diagnoses?.prevMonth,
+			prevYear: data.kpis.historical_comparisons?.total_diagnoses?.prevYear,
+			icon: FileText, iconBg: "bg-indigo-50", iconColor: "text-indigo-600",
+			infoText: "Total count of clinical disorder diagnoses recorded."
+		},
+		{
+			title: "Unique Conditions",
+			value: data.kpis.unique_conditions || 0,
+			prevWeek: data.kpis.historical_comparisons?.unique_conditions?.prevWeek,
+			prevMonth: data.kpis.historical_comparisons?.unique_conditions?.prevMonth,
+			prevYear: data.kpis.historical_comparisons?.unique_conditions?.prevYear,
+			icon: Fingerprint, iconBg: "bg-emerald-50", iconColor: "text-emerald-600",
+			infoText: "Count of entirely distinct medical conditions observed in the system."
+		},
+		{
+			title: "Chronic Burden",
+			value: data.kpis.chronic_condition_burden || 0,
+			prevWeek: data.kpis.historical_comparisons?.chronic_condition_burden?.prevWeek,
+			prevMonth: data.kpis.historical_comparisons?.chronic_condition_burden?.prevMonth,
+			prevYear: data.kpis.historical_comparisons?.chronic_condition_burden?.prevYear,
+			icon: RefreshCcw, iconBg: "bg-orange-50", iconColor: "text-orange-600",
+			infoText: "Count of currently active, ongoing conditions that have persisted for more than 90 days."
+		},
 	];
 
 	if (loading) {
@@ -191,20 +258,20 @@ const ConditionsDashboard = () => {
 	}
 
 	return (
-		<>
-			<header className="bg-white/80 backdrop-blur-md border-b border-slate-200 p-8 -mx-8 -mt-8 mb-8 sticky top-0 z-20">
-				<div className="max-w-full">
+		<div className="animate-fade-in w-full">
+			<header className="bg-white/80 backdrop-blur-md border-b border-slate-200 py-6 px-4 md:px-6 lg:px-8 sticky top-0 z-20 w-full">
+				<div className="max-w-[1600px] mx-auto w-full">
 					<div className="flex items-center gap-3 mb-2">
 						<div className="p-2 bg-teal-50 rounded-lg">
 							<Stethoscope size={24} className="text-teal-600" />
 						</div>
-						<h1 className="text-2xl font-black text-slate-900 tracking-tight">Conditions & Pathology</h1>
+						<h1 className="text-3xl font-black text-slate-900 tracking-tight">Conditions & Pathology</h1>
 					</div>
 					<p className="text-slate-500 font-medium ml-12">Epidemiological trends and disease management effectiveness</p>
 				</div>
 			</header>
 
-			<div className="space-y-10 max-w-[1600px] mx-auto w-full pb-10">
+			<div className="max-w-[1600px] mx-auto w-full px-4 md:px-6 lg:px-8 py-8 space-y-10 pb-10">
 
 				<KPICard kpis={kpiData} />
 
@@ -212,7 +279,7 @@ const ConditionsDashboard = () => {
 				<div className="grid grid-cols-1 md:grid-cols-2 gap-8">
 					{/* Row 1 */}
 					<MetricsCard title="Top 10 Active Disorders" metrics={[]} chartData={topDisorders} chartType="bar">
-						<ResponsiveContainer width="100%" height={450}>
+						<ResponsiveContainer width="100%" height="100%" minHeight={450}>
 							<BarChart layout="vertical" data={topDisorders} margin={{ left: 10, right: 30, top: 10, bottom: 10 }}>
 								<CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
 								<XAxis type="number" hide />
@@ -224,7 +291,7 @@ const ConditionsDashboard = () => {
 					</MetricsCard>
 
 					<MetricsCard title="Top 10 Recurring" metrics={[]} chartData={recurring} chartType="bar">
-						<ResponsiveContainer width="100%" height={450}>
+						<ResponsiveContainer width="100%" height="100%" minHeight={450}>
 							<BarChart layout="vertical" data={recurring} margin={{ left: 10, right: 30, top: 10, bottom: 10 }}>
 								<CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
 								<XAxis type="number" hide />
@@ -237,7 +304,7 @@ const ConditionsDashboard = () => {
 
 					{/* Row 2 */}
 					<MetricsCard title="Clinical Gravity (Severity)" metrics={[]} chartData={clinicalGravity} chartType="bar">
-						<ResponsiveContainer width="100%" height={450}>
+						<ResponsiveContainer width="100%" height="100%" minHeight={450}>
 							<BarChart layout="vertical" data={clinicalGravity} margin={{ left: 10, right: 30, top: 10, bottom: 10 }}>
 								<CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
 								<XAxis type="number" hide />
@@ -249,7 +316,7 @@ const ConditionsDashboard = () => {
 					</MetricsCard>
 
 					<MetricsCard title="Treatment Efficiency (Avg Cure Time)" metrics={[]} chartData={resolutionEfficiency} chartType="bar">
-						<ResponsiveContainer width="100%" height={450}>
+						<ResponsiveContainer width="100%" height="100%" minHeight={450}>
 							<BarChart layout="vertical" data={resolutionEfficiency} margin={{ left: 10, right: 30, top: 10, bottom: 10 }}>
 								<CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
 								<XAxis type="number" hide />
@@ -262,7 +329,7 @@ const ConditionsDashboard = () => {
 
 					{/* Row 3 */}
 					<MetricsCard title="Clinical Course" metrics={[{ label: "Total", value: chronicVsAcute.reduce((a, c) => a + c.value, 0) }]} chartData={chronicVsAcute} chartType="pie">
-						<ResponsiveContainer width="100%" height={300}>
+						<ResponsiveContainer width="100%" height="100%" minHeight={300}>
 							<PieChart>
 								<Pie data={chronicVsAcute} cx="50%" cy="50%" innerRadius={70} outerRadius={90} paddingAngle={5} dataKey="value">
 									{chronicVsAcute.map((entry, index) => <Cell key={`cell-${index}`} fill={PIE_COLORS[index % 5]} />)}
@@ -274,7 +341,7 @@ const ConditionsDashboard = () => {
 					</MetricsCard>
 
 					<MetricsCard title="Comorbidity Distribution" metrics={[]} chartData={comorbidityDistribution} chartType="bar">
-						<ResponsiveContainer width="100%" height={300}>
+						<ResponsiveContainer width="100%" height="100%" minHeight={300}>
 							<BarChart data={comorbidityDistribution}>
 								<CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
 								<XAxis dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
@@ -357,7 +424,7 @@ const ConditionsDashboard = () => {
 					{/* Row 2: Age Burden, Comorbidity Pairs */}
 					<div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
 						<MetricsCard title="Age-Based Disease Burden" metrics={[]} chartData={ageBurden} chartType="bar">
-							<ResponsiveContainer width="100%" height={300}>
+							<ResponsiveContainer width="100%" height="100%" minHeight={300}>
 								<BarChart data={ageBurden}>
 									<CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
 									<XAxis dataKey="name" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
@@ -400,7 +467,7 @@ const ConditionsDashboard = () => {
 								</div>
 							</div>
 							<div className="flex items-center gap-2">
-								<Users size={14} onClick={() => setSeed(s => s + 1)} className="cursor-pointer hover:text-amber-600" title="Reshuffle Layout" />
+								<Users size={14} onClick={() => setSeed(s => s + 1)} className="cursor-pointer hover:text-amber-600" />
 								<input
 									type="number"
 									min="5" max="200"
@@ -456,7 +523,7 @@ const ConditionsDashboard = () => {
 					</div>
 				</div>
 			</div>
-		</>
+		</div>
 	);
 };
 

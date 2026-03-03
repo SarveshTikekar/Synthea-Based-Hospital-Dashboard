@@ -48,9 +48,9 @@ const Layout = () => {
                     </div>
                 </header>
 
-                {/* Scrollable Content Area */}
-                <main className="flex-1 p-4 md:p-6 lg:p-8">
-                    <div className="max-w-7xl mx-auto w-full">
+                {/* Scrollable Content Area - Removed strict padding so children can bleed to edges */}
+                <main className="flex-1 overflow-x-hidden">
+                    <div className="w-full">
                         <Outlet />
                     </div>
                 </main>

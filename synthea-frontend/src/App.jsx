@@ -6,6 +6,7 @@ import DataGeneration from './pages/DataGeneration';
 import PatientDashboard from './pages/PatientDashboard';
 import ConditionsDashboard from "./pages/ConditionsDashboard";
 import AllergiesDashboard from './pages/AllergiesDashboard';
+import EncountersDashboard from './pages/EncountersDashboard';
 import Layout from './components/Layout';
 import path from 'path';
 
@@ -20,6 +21,7 @@ const router = createBrowserRouter([
       { path: "/patient_dashboard", element: <PatientDashboard /> },
       { path: "/conditions_dashboard", element: <ConditionsDashboard /> },
       { path: "/allergies_dashboard", element: <AllergiesDashboard /> },
+      { path: "/encounters_dashboard", element: <EncountersDashboard /> },
     ]
   }
 ]);

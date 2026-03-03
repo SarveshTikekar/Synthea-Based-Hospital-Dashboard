@@ -7,6 +7,11 @@ class conditionKPIS(BaseModel):
     patient_complexity_score: int = Field(0, description="Average number of conditions per patient")
     average_time_to_cure: int = Field(0, description="Average time (in days) taken to completely treat a condition")
     admission_rate_last_30_days: int = Field(0, description="Number of admissions in the last 30 days related to conditions")
+    total_diagnoses: int = Field(0, description="Total count of all condition records in the history")
+    unique_conditions: int = Field(0, description="Total count of distinct medical condition concepts seen")
+    chronic_condition_burden: int = Field(0, description="Count of currently active conditions lasting longer than 90 days")
+
+    historical_comparisons: Dict[str, Dict[str, float]] = Field(default_factory=dict, description="Nested dictionary for prevWeek, prevMonth, prevYear values for each metric")
 
 class conditionMetrics(BaseModel):
     top_disorder_conditions: List[Dict[str, int]] = Field(default_factory=list, description="List of top 5 disorder conditions by prevalence with their counts")

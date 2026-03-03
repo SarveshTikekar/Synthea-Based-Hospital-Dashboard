@@ -3,9 +3,9 @@ import {
   AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from "recharts";
-import { BarChart3, TrendingUp, History } from "lucide-react";
+import { BarChart3, TrendingUp, History, Info } from "lucide-react";
 
-const MetricsCard = ({ title, metrics, chartData, chartType = "line", children }) => {
+const MetricsCard = ({ title, metrics, chartData, chartType = "line", infoText = "", children = null }) => {
 
   // Helper to transform Spark [{ "2025": 10 }] -> [{ name: "2025", value: 10 }]
   const formattedData = useMemo(() => {
@@ -16,15 +16,26 @@ const MetricsCard = ({ title, metrics, chartData, chartType = "line", children }
   }, [chartData]); // Latest year on the right
 
   return (
-    <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden mb-8 flex flex-col h-full">
+    <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm mb-8 flex flex-col h-full" style={{ overflow: 'visible' }}>
 
       {/* Top Section: Header & Summary */}
-      <div className="w-full p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+      <div className="w-full p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-6 rounded-t-[2.5rem]" style={{ overflow: 'visible' }}>
         <div className="flex items-center gap-3">
           <div className="p-2.5 bg-white rounded-xl shadow-sm">
             <BarChart3 size={22} className="text-teal-600" />
           </div>
-          <h3 className="text-xl font-black text-slate-800 tracking-tight">{title}</h3>
+          <div className="flex items-center gap-2" style={{ overflow: 'visible' }}>
+            <h3 className="text-xl font-black text-slate-800 tracking-tight">{title}</h3>
+            {infoText && (
+              <div className="relative group/tooltip flex items-center" style={{ overflow: 'visible' }}>
+                <Info size={16} className="text-slate-400 hover:text-teal-600 transition-colors cursor-help" />
+                <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-max max-w-xs bg-slate-800 text-white text-xs rounded-xl p-3 opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all z-[200] shadow-xl pointer-events-none normal-case tracking-normal font-normal">
+                  <div className="absolute left-1/2 -translate-x-1/2 bottom-full w-0 h-0 border-l-8 border-r-8 border-b-8 border-transparent border-b-slate-800"></div>
+                  {infoText}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-3">
@@ -38,19 +49,8 @@ const MetricsCard = ({ title, metrics, chartData, chartType = "line", children }
       </div>
 
       {/* Main Chart Area */}
-      <div className="w-full p-6 relative flex-1 min-h-[300px]">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-2">
-            <TrendingUp size={16} className="text-teal-500" />
-            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Historical Trend</h4>
-          </div>
-          <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 bg-slate-50 px-3 py-1.5 rounded-full">
-            <History size={12} />
-            10-YEAR DATA
-          </div>
-        </div>
-
-        <div className="h-[250px] w-full">
+      <div className="w-full p-6 relative flex-1 flex flex-col">
+        <div className="flex-1 w-full min-h-[300px]">
           {children ? children : (
             <ResponsiveContainer width="100%" height="100%">
               {chartType === "line" ? (
