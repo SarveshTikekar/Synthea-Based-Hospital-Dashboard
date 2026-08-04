@@ -1,8 +1,9 @@
 import axios from "axios"
 
 /*For betterment we would use functions*/
-const API_URL = "/api"
 
+
+export const API_URL = "/api";
 export const generatePatients = async ({ numberOfPatients, state }) => {
 
 	try {

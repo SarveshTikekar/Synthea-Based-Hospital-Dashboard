@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 import os
 import sys
@@ -80,20 +80,23 @@ def generate_data():
             raise ValueError("num_patients must be a positive integer")
 
         state = request.args.get('state', default=None, type=str)
+        if not state or state.strip() == "":
+            state = "Massachusetts"
         
-        # Check if GitHub Action dispatch parameters are configured in the environment
+        # Determine execution mode: GitHub Action, local testing, or disallowed
         github_token = os.getenv("GITHUB_TOKEN")
         github_repo = os.getenv("GITHUB_REPOSITORY")
         github_ref = os.getenv("GITHUB_REF", "main")
-        
+        local_mode = os.getenv("LOCAL_MODE", "false").lower() == "true"
+
         if github_token and github_repo:
+            # GitHub Action dispatch flow (unchanged)
             import urllib.request
             import json
             
             workflow_filename = "data_pipeline.yml"
             url = f"https://api.github.com/repos/{github_repo}/actions/workflows/{workflow_filename}/dispatches"
             
-            # workflow dispatch inputs are always string mappings
             payload = {
                 "ref": github_ref,
                 "inputs": {
@@ -102,55 +105,73 @@ def generate_data():
                 }
             }
             
-            data = json.dumps(payload).encode('utf-8')
-            req = urllib.request.Request(
-                url,
-                data=data,
-                headers={
-                    "Accept": "application/vnd.github+json",
-                    "Authorization": f"Bearer {github_token}",
-                    "X-GitHub-Api-Version": "2022-11-28",
-                    "User-Agent": "SarvSynth-App",
-                    "Content-Type": "application/json"
-                },
-                method="POST"
-            )
+            def stream_github():
+                try:
+                    yield "data: [SYSTEM] Preparing to dispatch GitHub Action...\n\n"
+                    data = json.dumps(payload).encode('utf-8')
+                    req = urllib.request.Request(
+                        url,
+                        data=data,
+                        headers={
+                            "Accept": "application/vnd.github+json",
+                            "Authorization": f"Bearer {github_token}",
+                            "X-GitHub-Api-Version": "2022-11-28",
+                            "User-Agent": "SarvSynth-App",
+                            "Content-Type": "application/json"
+                        },
+                        method="POST"
+                    )
+                    with urllib.request.urlopen(req) as response:
+                        if response.status == 204:
+                            yield f"data: GitHub Action successfully triggered: Generating {num_patients} patients in {state} region asynchronously on GitHub runners.\n\n"
+                            yield "data: [SUCCESS] GitHub Action triggered successfully!\n\n"
+                        else:
+                            yield f"data: [ERROR] Failed to trigger GitHub Action: {response.status} {response.reason}\n\n"
+                except Exception as github_err:
+                    yield f"data: [ERROR] GitHub Actions Dispatch failed: {str(github_err)}\n\n"
             
-            try:
-                with urllib.request.urlopen(req) as response:
-                    if response.status == 204:
-                        return jsonify({
-                            "status": "success",
-                            "message": f"GitHub Action successfully triggered: Generating {num_patients} patients in {state if state else 'Massachusetts'} region asynchronously on GitHub runners."
-                        }), 200
+            return Response(stream_github(), content_type='text/event-stream', headers={
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+                'X-Accel-Buffering': 'no'
+            })
+        elif local_mode:
+            # Local subprocess generation (only when LOCAL_MODE=true)
+            script_path = os.path.join(project_root, "workflows", "scripts", "synthea-init.sh")
+            if not os.path.exists(script_path):
+                return jsonify({"status": "error", "message": "Synthea script not found"}), 404
+            cmd = [script_path, str(num_patients)]
+            if state:
+                cmd.append(state)
+            
+            def stream_output():
+                try:
+                    process = subprocess.Popen(
+                        cmd,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        text=True,
+                        bufsize=1
+                    )
+                    for line in iter(process.stdout.readline, ""):
+                        yield f"data: {line.rstrip()}\n\n"
+                    process.stdout.close()
+                    return_code = process.wait()
+                    if return_code != 0:
+                        yield f"data: [ERROR] Generation failed with exit code {return_code}\n\n"
                     else:
-                        return jsonify({
-                            "status": "error",
-                            "message": f"Failed to trigger GitHub Action: {response.status} {response.reason}"
-                        }), response.status
-            except Exception as github_err:
-                return jsonify({
-                    "status": "error",
-                    "message": f"GitHub Actions Dispatch failed: {str(github_err)}"
-                }), 500
-                
-        # Otherwise fallback to local subprocess generation
-        script_path = os.path.join(project_root, "workflows", "scripts", "synthea-init.sh")
-
-        if not os.path.exists(script_path):
-            return jsonify({"status": "error", "message": "Synthea script not found"}), 404
-
-        # Pass state as the second argument if provided
-        cmd = [script_path, str(num_patients)]
-        if state:
-            cmd.append(state)
+                        yield "data: [SUCCESS] Patient records generated successfully!\n\n"
+                except Exception as stream_err:
+                    yield f"data: [ERROR] {str(stream_err)}\n\n"
             
-        subprocess.run(cmd, check=True)
-        
-        return jsonify({
-            "status": "success",
-            "message": f"Local run triggered: {num_patients} patient records generated locally"
-        }), 200
+            return Response(stream_output(), content_type='text/event-stream', headers={
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+                'X-Accel-Buffering': 'no'
+            })
+        else:
+            # Neither GitHub nor local testing enabled
+            return jsonify({"status": "error", "message": "Data generation not configured. Set LOCAL_MODE=true for local testing or provide GitHub credentials."}), 400
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 

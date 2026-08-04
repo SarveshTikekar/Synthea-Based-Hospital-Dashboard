@@ -1,7 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import DataGenerationButton from '../components/DataGenerationButton';
-import { generatePatients } from '../api/api';
+import { API_URL } from '../api/api';
 import { Terminal, Database, Play, AlertCircle, CheckCircle, Loader, Cpu, MapPin, Users } from 'lucide-react';
+
+const US_STATES = [
+  "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", 
+  "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", 
+  "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi", 
+  "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico", 
+  "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania", 
+  "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", 
+  "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming"
+];
 
 const DataGeneration = () => {
   const [status, setStatus] = useState('idle'); // idle, generating, complete, error
@@ -25,40 +35,44 @@ const DataGeneration = () => {
     setStatus('generating');
     setProgress(0);
     setLogs([]);
-    addLog(`Initializing Synthea Generation Sequence for ${numPatients} patients in ${stateName || 'Random State'}...`, 'system');
-
-    // Start progress simulation
+    addLog(`Initializing Synthea Generation Sequence for ${numPatients} patients in ${stateName || 'Massachusetts'}...`, 'system');
+    // Start progress simulation (optional)
     let prog = 0;
     const interval = setInterval(() => {
       prog += Math.floor(Math.random() * 5);
       if (prog > 95) prog = 95;
       setProgress(prog);
-
-      const messages = [
-        "Allocating memory buffers...",
-        "Loading demographic templates...",
-        "Simulating patient timelines...",
-        "Writing FHIR resources...",
-        "Exporting to CSV...",
-        "Triggering ETL Pipeline..."
-      ];
-      if (prog < 95 && Math.random() > 0.8) {
-        addLog(messages[Math.floor(Math.random() * messages.length)]);
-      }
     }, 400);
 
-    try {
-      const result = await generatePatients({ numberOfPatients: numPatients, state: stateName });
+    // Setup Server-Sent Events listener
+    const sseUrl = `${API_URL}/generate_data?num_patients=${numPatients}&state=${stateName}`;
+    const eventSource = new EventSource(sseUrl);
+    eventSource.onmessage = (e) => {
+      const msg = e.data;
+      // Determine log type based on content
+      let type = 'info';
+      if (msg.includes('[SYSTEM]')) type = 'system';
+      else if (msg.includes('[SUCCESS]')) type = 'success';
+      else if (msg.includes('[ERROR]')) type = 'error';
+      addLog(msg, type);
+      if (type === 'success') {
+        clearInterval(interval);
+        setProgress(100);
+        setStatus('complete');
+        eventSource.close();
+      }
+      if (type === 'error') {
+        clearInterval(interval);
+        setStatus('error');
+        eventSource.close();
+      }
+    };
+    eventSource.onerror = (e) => {
       clearInterval(interval);
-      setProgress(100);
-      setStatus('complete');
-      addLog("Data Generation Successful!", 'success');
-      addLog(result.message || "Records generation triggered successfully.", 'info');
-    } catch (err) {
-      clearInterval(interval);
+      addLog('Error while receiving logs.', 'error');
       setStatus('error');
-      addLog(`Error: ${err.message || 'Unknown error occurred'}`, 'error');
-    }
+      eventSource.close();
+    };
   };
 
   return (
@@ -99,14 +113,19 @@ const DataGeneration = () => {
                   <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2">
                     <MapPin size={14} /> Target State (Optional)
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={stateName}
                     onChange={(e) => setStateName(e.target.value)}
-                    placeholder="e.g. Massachusetts"
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all font-medium text-slate-700"
-                  />
-                  <p className="text-[10px] text-slate-400 mt-1.5 ml-1 italic">Leave empty for a random US state selection.</p>
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all font-medium text-slate-700 cursor-pointer"
+                  >
+                    <option value="">Select a state</option>
+                    {US_STATES.map((state) => (
+                      <option key={state} value={state}>
+                        {state}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[10px] text-slate-400 mt-1.5 ml-1 italic">Defaults to Massachusetts if not selected.</p>
                 </div>
               </div>
 
