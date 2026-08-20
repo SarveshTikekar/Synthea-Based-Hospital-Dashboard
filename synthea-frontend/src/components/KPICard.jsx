@@ -31,6 +31,21 @@ const SingleKPICard = ({ kpi, index }) => {
   const statusColor = diff === 0 ? "text-slate-400" : isPositiveChange ? "text-emerald-500" : "text-rose-500";
   const statusBg = diff === 0 ? "bg-slate-50" : isPositiveChange ? "bg-emerald-50" : "bg-rose-50";
 
+  const formatValue = (val) => {
+    if (val === null || val === undefined) return "N/A";
+    if (typeof val !== "number") return val;
+    if (kpi.format === "{:.2}%") return `${val.toFixed(2)}%`;
+    if (kpi.format === "{:.0f} years") return `${Math.round(val)} years`;
+    if (kpi.format === "${:,.2f}") return `$${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if (kpi.format === "{:.0f} days") return `${Math.round(val)} days`;
+    if (kpi.format === "{:.0f} conditions") return `${Math.round(val).toLocaleString()} conditions`;
+    if (kpi.format === "{:.0f} encounters") return `${Math.round(val).toLocaleString()} encounters`;
+    if (kpi.format === "{:.0f} patients") return `${Math.round(val).toLocaleString()} patients`;
+    if (kpi.format === "{:.1f} encounters/day") return `${val.toFixed(1)} encounters/day`;
+    if (kpi.format === "{:.0f} conditions/patient") return `${Math.round(val)} conditions/patient`;
+    return val.toLocaleString();
+  };
+
   return (
     <div
       key={index}
@@ -44,7 +59,7 @@ const SingleKPICard = ({ kpi, index }) => {
           </p>
           {/* Centralized main value, visible first */}
           <h3 className="text-3xl font-black text-slate-900 tracking-tight mb-2">
-            {typeof kpi.value === 'number' ? kpi.value.toLocaleString() : kpi.value}
+            {formatValue(kpi.value)}
           </h3>
         </div>
 
@@ -52,10 +67,10 @@ const SingleKPICard = ({ kpi, index }) => {
         <div className="flex items-center gap-2 flex-wrap mt-auto">
           <p className="text-[9px] text-slate-400 font-semibold">
             Vs. last <span className="lowercase">{activePeriodType}</span>:
-            <span className="text-slate-700 font-bold ml-1">
-              {activePrevValue.toLocaleString(undefined, { maximumFractionDigits: 1 })}
-            </span>
-          </p>
+              <span className="text-slate-700 font-bold ml-1">
+              {formatValue(activePrevValue)}
+              </span>
+            </p>
 
           {kpi.prevValue !== undefined && (
             <div className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-black ${statusColor} ${statusBg} border border-slate-100`}>

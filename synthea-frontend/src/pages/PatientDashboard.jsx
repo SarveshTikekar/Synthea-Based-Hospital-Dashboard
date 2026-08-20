@@ -22,8 +22,8 @@ const transformSurvivalData = (raw) => {
     const fVal = females[idx] ? females[idx][age] : 0;
     return {
       name: `${age}y`,
-      Male: mVal * 100, // percentage for better viz
-      Female: fVal * 100
+      Male: Number(mVal) / 100,
+      Female: Number(fVal) / 100
     };
   });
 };
@@ -51,7 +51,7 @@ const transformWealthData = (raw) => {
 const transformMortalityData = (raw) => {
   if (!raw) return [];
   const races = Object.keys(raw);
-  const quintiles = ["Q0", "Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9"];
+  const quintiles = ["Q0", "Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10"];
 
   return quintiles.map(q => {
     const entry = { name: q };
@@ -59,7 +59,7 @@ const transformMortalityData = (raw) => {
       const raceData = raw[race];
       if (Array.isArray(raceData)) {
         const qData = raceData.find(item => item[0] === q);
-        entry[race] = qData ? qData[2] * 100 : 0; // percentage
+        entry[race] = qData ? qData[2] : 0;
       } else {
         entry[race] = 0;
       }
@@ -68,8 +68,25 @@ const transformMortalityData = (raw) => {
   });
 };
 
+const resolveFormatString = (formats, label) => {
+  if (!formats || !label) return null;
+
+  const aliasMap = {
+    "avg patient age": "average patient age",
+    "gender balance": "gender ratio",
+    "higher ed rate": "higher education rate",
+  };
+
+  const normalizedLabel = (aliasMap[label.toLowerCase()] || label.toLowerCase());
+  const formatEntry = Object.entries(formats).find(([key]) => key.toLowerCase() === normalizedLabel);
+  return formatEntry ? formatEntry[1] : null;
+};
+
+const formatPercentage = (value) => `${Number(value || 0).toFixed(2)}%`;
+const formatDollar = (value) => `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 const PatientDashboard = () => {
-  const [data, setData] = useState({ kpis: {}, metrics: {}, trends: {}, advanced: {} });
+  const [data, setData] = useState({ kpis: {}, metrics: {}, trends: {}, advanced: {}, formats: {} });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -82,7 +99,8 @@ const PatientDashboard = () => {
             kpis: result.kpis || {},
             metrics: result.metrics || {},
             trends: result.metric_trends || {},
-            advanced: result.advanced_metrics || {}
+            advanced: result.advanced_metrics || {},
+            formats: result.formats || {}
           });
         }
       } catch (err) {
@@ -95,14 +113,18 @@ const PatientDashboard = () => {
   }, []);
 
   // Memoize transformed data for charts
-  const survivalData = useMemo(() => transformSurvivalData(data.advanced.actural_survival_trend), [data.advanced.actural_survival_trend]);
+  const survivalData = useMemo(
+    () => transformSurvivalData(data.advanced.actual_survival_trend || data.advanced.actural_survival_trend),
+    [data.advanced.actual_survival_trend, data.advanced.actural_survival_trend]
+  );
   const entropyData = useMemo(() => transformEntropyData(data.advanced.demographic_entropy), [data.advanced.demographic_entropy]);
   const wealthData = useMemo(() => transformWealthData(data.advanced.wealth_trajectory), [data.advanced.wealth_trajectory]);
   const mortalityData = useMemo(() => transformMortalityData(data.advanced.mortality_hazard_by_quintiles), [data.advanced.mortality_hazard_by_quintiles]);
 
-  const survivalOption = useMemo(() => ({
+const survivalOption = useMemo(() => ({
     tooltip: {
       trigger: 'axis',
+      valueFormatter: (value) => `${Number(value).toFixed(2)}%`,
       backgroundColor: 'rgba(255, 255, 255, 0.95)',
       borderRadius: 12,
       borderWidth: 0,
@@ -129,7 +151,7 @@ const PatientDashboard = () => {
       type: 'value',
       axisLine: { show: false },
       axisTick: { show: false },
-      axisLabel: { color: '#94a3b8', fontSize: 10, formatter: '{value}%' },
+      axisLabel: { color: '#94a3b8', fontSize: 10, formatter: (value) => `${Number(value).toFixed(2)}%` },
       splitLine: { lineStyle: { type: 'dashed', color: '#f1f5f9' } }
     },
     series: [
@@ -177,6 +199,7 @@ const PatientDashboard = () => {
   const entropyOption = useMemo(() => ({
     tooltip: {
       trigger: 'axis',
+      valueFormatter: (value) => `${Number(value).toFixed(2)}%`,
       backgroundColor: 'rgba(255, 255, 255, 0.95)',
       borderRadius: 12,
       borderWidth: 0,
@@ -298,6 +321,21 @@ const PatientDashboard = () => {
   const mortalityOption = useMemo(() => ({
     tooltip: {
       trigger: 'axis',
+      formatter: (params) => {
+        const title = params?.[0]?.axisValue ?? '';
+        const rows = params
+          .filter((item) => item.value !== 0 && item.value !== null && item.value !== undefined)
+          .map((item) => {
+            const value = Number(item.value).toFixed(1);
+            return `<div style="display:flex;justify-content:space-between;gap:16px;margin-top:4px;">
+              <span><span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:${item.color};margin-right:8px;"></span>${item.seriesName}</span>
+              <span style="font-weight:700">${value}%</span>
+            </div>`;
+          })
+          .join('');
+
+        return `<div style="font-weight:700;margin-bottom:6px;">${title}</div>${rows || '<div>No data</div>'}`;
+      },
       backgroundColor: 'rgba(255, 255, 255, 0.95)',
       borderRadius: 12,
       borderWidth: 0,
@@ -319,13 +357,13 @@ const PatientDashboard = () => {
       axisTick: { show: false },
       axisLabel: { color: '#94a3b8', fontSize: 10 }
     },
-    yAxis: {
-      type: 'value',
-      axisLine: { show: false },
-      axisTick: { show: false },
-      axisLabel: { color: '#94a3b8', fontSize: 10, formatter: '{value}%' },
-      splitLine: { lineStyle: { type: 'dashed', color: '#f1f5f9' } }
-    },
+			yAxis: {
+				type: 'value',
+				axisLine: { show: false },
+				axisTick: { show: false },
+      axisLabel: { color: '#94a3b8', fontSize: 10, formatter: (value) => `${Number(value).toFixed(2)}%` },
+				splitLine: { lineStyle: { type: 'dashed', color: '#f1f5f9' } }
+			},
     series: [
       {
         name: 'White',
@@ -333,6 +371,8 @@ const PatientDashboard = () => {
         stack: 'total',
         barWidth: 26,
         data: mortalityData.map(d => d.white),
+        label: { show: false },
+        emphasis: { disabled: true },
         itemStyle: {
           color: {
             type: 'linear',
@@ -349,6 +389,8 @@ const PatientDashboard = () => {
         type: 'bar',
         stack: 'total',
         data: mortalityData.map(d => d.black),
+        label: { show: false },
+        emphasis: { disabled: true },
         itemStyle: {
           color: {
             type: 'linear',
@@ -365,6 +407,8 @@ const PatientDashboard = () => {
         type: 'bar',
         stack: 'total',
         data: mortalityData.map(d => d.asian),
+        label: { show: false },
+        emphasis: { disabled: true },
         itemStyle: {
           color: {
             type: 'linear',
@@ -381,6 +425,8 @@ const PatientDashboard = () => {
         type: 'bar',
         stack: 'total',
         data: mortalityData.map(d => d.native),
+        label: { show: false },
+        emphasis: { disabled: true },
         itemStyle: {
           borderRadius: [4, 4, 0, 0],
           color: {
@@ -399,6 +445,8 @@ const PatientDashboard = () => {
   // 1. Map KPI Data (Injecting prevValues from new historical_data structure)
   // historical_data is grouped by period: { last_week: { total_patients: X, ... }, last_month: {...}, last_year: {...} }
   const hist = data.kpis.historical_data || {};
+  const formats = data.formats || {};
+
   const kpiData = [
     {
       title: "Total Patients",
@@ -424,7 +472,7 @@ const PatientDashboard = () => {
       infoText: "Percentage of patients currently alive relative to total registered."
     },
     {
-      title: "Gender Balance",
+      title: "Gender Ratio",
       value: data.kpis.gender_balance_ratio || 0,
       prevWeek: hist.last_week?.gender_balance,
       prevMonth: hist.last_month?.gender_balance,
@@ -479,7 +527,7 @@ const PatientDashboard = () => {
       infoText: "Percentage of patients whose marital status is recorded as married."
     },
     {
-      title: "Higher Ed Rate",
+      title: "Higher Education Rate",
       value: data.kpis.higher_education_rate || 0,
       prevWeek: hist.last_week?.higher_education_rate,
       prevMonth: hist.last_month?.higher_education_rate,
@@ -491,6 +539,11 @@ const PatientDashboard = () => {
     }
   ];
 
+  const formattedKpiData = kpiData.map((kpi) => ({
+    ...kpi,
+    format: resolveFormatString(formats, kpi.title)
+  }));
+
   if (loading) {
     return <LoadingScreen message="Loading Patient Records..." subtext="Please wait while we gather the information." />;
   }
@@ -499,37 +552,40 @@ const PatientDashboard = () => {
     <div className="animate-fade-in w-full">
       <div className="max-w-[1600px] mx-auto w-full px-4 md:px-6 lg:px-8 py-8 space-y-10">
         {/* Section 1: KPI Grid */}
-        <KPICard kpis={kpiData} />
+        <KPICard kpis={formattedKpiData} />
 
         {/* Section 2: Trend Analysis (Standard Metrics) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           <MetricsCard
             title="Economic Dependence"
             metrics={[
-              { label: "Current Ratio", value: `${data.metrics.economic_dependence_ratio}%` },
+              { label: "Current Ratio", value: formatPercentage(data.metrics.economic_dependence_ratio) },
             ]}
             chartData={data.trends.economic_dependence}
             chartType="bar"
+            valueFormatter={formatPercentage}
             infoText="Ratio of the non-working age population (under 20 or over 64) to the working-age population (20-64)."
           />
 
           <MetricsCard
             title="Cultural Diversity"
             metrics={[
-              { label: "Diversity Score", value: `${data.metrics.cultural_diversity_score}%` }
+              { label: "Diversity Score", value: formatPercentage(data.metrics.cultural_diversity_score) }
             ]}
             chartData={data.trends.cultural_diversity}
             chartType="line"
+            valueFormatter={formatPercentage}
             infoText="Multi-ethnic representation score where 100% represents a perfectly balanced distribution across all racial groups."
           />
 
           <MetricsCard
             title="Mortality Analysis"
             metrics={[
-              { label: "Current Rate", value: `${data.metrics.mortality_rate?.toFixed(2)}%` }
+              { label: "Current Rate", value: formatPercentage(data.metrics.mortality_rate) }
             ]}
             chartData={data.trends.mortality_rate}
             chartType="line"
+            valueFormatter={formatPercentage}
             infoText="Longitudinal death rate within the selected population, tracking changes in survival rates over the last 10 years."
           />
         </div>
@@ -578,7 +634,20 @@ const PatientDashboard = () => {
               infoText="Correlation between age groups and average household income, showing the rate of wealth accumulation over a lifetime."
             >
               <ReactECharts
-                option={wealthOption}
+                option={{
+                  ...wealthOption,
+                  tooltip: {
+                    ...wealthOption.tooltip,
+                    valueFormatter: formatDollar
+                  },
+                  yAxis: [
+                    {
+                      ...wealthOption.yAxis[0],
+                      axisLabel: { ...wealthOption.yAxis[0].axisLabel, formatter: formatDollar }
+                    },
+                    wealthOption.yAxis[1]
+                  ]
+                }}
                 style={{ height: '300px', width: '100%' }}
                 opts={{ renderer: 'svg' }}
               />

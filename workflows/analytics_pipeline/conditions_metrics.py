@@ -163,8 +163,15 @@ async def calculateMetrics(df, supabase):
                 .groupBy("medical_concepts").agg(
                     count("uuid").alias("frequency"),
                     avg("days_for_treatment").alias("avg_time_to_cure")
-                ).withColumn("avg_time_to_cure", floor(coalesce(col("avg_time_to_cure"), lit(1)))) \
-                .orderBy(asc("avg_time_to_cure"), desc("frequency")).limit(20).collect()
+                ).withColumn(
+                    "avg_time_to_cure",
+                    spark_round(
+                        when(coalesce(col("avg_time_to_cure"), lit(0.0)) < 1, lit(1.0))
+                        .otherwise(coalesce(col("avg_time_to_cure"), lit(1.0))),
+                        1,
+                    )
+                ) \
+                .orderBy(desc("avg_time_to_cure"), desc("frequency")).limit(20).collect()
     disease_resolution_top_20 = [(row[0], int(row[1]), int(row[2])) for row in res_eff]
 
     # Metric-4 Top 10 recurring disorders

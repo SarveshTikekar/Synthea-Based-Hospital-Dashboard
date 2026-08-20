@@ -132,7 +132,7 @@ async def calculateMetrics(df, supabase):
         cult_div_score = 0
 
     deaths = df.filter(col("death_date").isNotNull()).count()
-    mort_rate = builtins.round((deaths / df.count() * 100), 2) if df.count() > 0 else 0.0
+    mort_rate = builtins.round(((deaths / df.count()) * 100), 2) if df.count() > 0 else 0.0
         
     averages = df_age.agg(mean("age").alias("mean_age"), mean("family_income").alias("mean_fi")).first()
     x_mean = averages.mean_age or 0
@@ -199,15 +199,18 @@ async def calculateAdvancedMetrics(df, supabase):
     df_age_calc = df.withColumn("age", when((col("death_date").isNotNull()), (datediff(col("death_date"), col("birth_date"))/365.25).cast("int")) \
                                .otherwise((datediff(current_date(), col("birth_date"))/365.25)).cast("int"))
     males, females = [], []
-    curr_m, curr_f = 1, 1
+    curr_m, curr_f = 1.0, 1.0
     for req_age in bins:
-        alive_m = df_age_calc.filter((col("gender") == "M") & (col("age") >= req_age)).count()
-        alive_f = df_age_calc.filter((col("gender") == "F") & (col("age") >= req_age)).count()
-        dead_m = df_age_calc.filter((col("gender") == "M") & ((col("age") > (req_age - 5)) & (col("age") <= req_age) & (col("death_date").isNotNull()))).count()
-        dead_f = df_age_calc.filter((col("gender") == "F") & ((col("age") > (req_age - 5)) & (col("age") <= req_age) & (col("death_date").isNotNull()))).count()
-        curr_m = builtins.round(curr_m * (1 - (dead_m/(alive_m or 1))), 3)
-        curr_f = builtins.round(curr_f * (1 - (dead_f/(alive_f or 1))), 3)
-        males.append({req_age: curr_m}); females.append({req_age: curr_f})
+        lower_bound = req_age - 5
+        at_risk_m = df_age_calc.filter((col("gender") == "M") & (col("age") >= lower_bound)).count()
+        at_risk_f = df_age_calc.filter((col("gender") == "F") & (col("age") >= lower_bound)).count()
+        dead_m = df_age_calc.filter((col("gender") == "M") & (col("age") > lower_bound) & (col("age") <= req_age) & (col("death_date").isNotNull())).count()
+        dead_f = df_age_calc.filter((col("gender") == "F") & (col("age") > lower_bound) & (col("age") <= req_age) & (col("death_date").isNotNull())).count()
+        step_m = builtins.max(0.0, builtins.min(1.0, 1 - (dead_m / at_risk_m))) if at_risk_m > 0 else 1.0
+        step_f = builtins.max(0.0, builtins.min(1.0, 1 - (dead_f / at_risk_f))) if at_risk_f > 0 else 1.0
+        curr_m = builtins.round(curr_m * step_m, 3)
+        curr_f = builtins.round(curr_f * step_f, 3)
+        males.append({req_age: curr_m * 100}); females.append({req_age: curr_f * 100})
     
     # --- 3. Demographic Entropy ---
     city_list = [str(row[0]) for row in df.select("geolocated_city").distinct().collect()]

@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import ReactECharts from 'echarts-for-react';
 import { BarChart3, History, Info } from "lucide-react";
 
-const MetricsCard = ({ title, metrics, chartData, chartType = "line", infoText = "", children = null }) => {
+const MetricsCard = ({ title, metrics, chartData, chartType = "line", infoText = "", children = null, valueFormatter = (v) => v }) => {
 
   // Data is now normalized as [{ name: "Year", value: val }] from the backend
   const formattedData = useMemo(() => {
@@ -27,6 +27,7 @@ const MetricsCard = ({ title, metrics, chartData, chartType = "line", infoText =
     const baseOption = {
       tooltip: {
         trigger: 'axis',
+        valueFormatter,
         backgroundColor: 'rgba(255, 255, 255, 0.95)',
         borderRadius: 12,
         borderWidth: 0,
@@ -52,7 +53,7 @@ const MetricsCard = ({ title, metrics, chartData, chartType = "line", infoText =
         type: 'value',
         axisLine: { show: false },
         axisTick: { show: false },
-        axisLabel: { color: '#94a3b8', fontSize: 11, fontWeight: 'bold' },
+        axisLabel: { color: '#94a3b8', fontSize: 11, fontWeight: 'bold', formatter: valueFormatter },
         splitLine: { lineStyle: { type: 'dashed', color: '#f1f5f9' } }
       }
     };
@@ -103,7 +104,7 @@ const MetricsCard = ({ title, metrics, chartData, chartType = "line", infoText =
         ]
       };
     }
-  }, [formattedData, chartType]);
+  }, [formattedData, chartType, valueFormatter]);
 
   return (
     <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm mb-8 flex flex-col h-full overflow-hidden relative">

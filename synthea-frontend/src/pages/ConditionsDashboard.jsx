@@ -23,7 +23,7 @@ const COLORS = {
 const PIE_COLORS = ["#14b8a6", "#f43f5e", "#8b5cf6", "#f59e0b", "#3b82f6"];
 
 const ConditionsDashboard = () => {
-	const [data, setData] = useState({ kpis: {}, metrics: {}, advanced_metrics: {} });
+	const [data, setData] = useState({ kpis: {}, metrics: {}, advanced_metrics: {}, formats: {} });
 	const [loading, setLoading] = useState(true);
 
 	// --- Interactivity State ---
@@ -45,7 +45,8 @@ const ConditionsDashboard = () => {
 					setData({
 						kpis: result.conditions_dashboard.kpis || {},
 						metrics: result.conditions_dashboard.metrics || {},
-						advanced_metrics: result.conditions_dashboard.advanced_metrics || {}
+						advanced_metrics: result.conditions_dashboard.advanced_metrics || {},
+						formats: result.formats || {}
 					});
 				}
 			} catch (err) {
@@ -61,6 +62,12 @@ const ConditionsDashboard = () => {
 	const transformList = (list) => {
 		if (!list) return [];
 		return list.flatMap(item => {
+			if (Array.isArray(item)) {
+				if (item.length === 2 && typeof item[0] === "string") {
+					return [{ name: item[0], value: item[1] }];
+				}
+				return item.map((value, index) => ({ name: String(index), value }));
+			}
 			return Object.keys(item).map(key => ({ name: key, value: item[key] }));
 		});
 	};
@@ -69,6 +76,45 @@ const ConditionsDashboard = () => {
 		if (!str) return "";
 		return str.length > max ? `(${str.substring(0, max)}...)` : str;
 	};
+
+	const resolveFormatString = (formats, label) => {
+		if (!formats || !label) return null;
+		const aliasMap = {
+			"recovery rate": "reccovery rate",
+			"recovery rate (30d)": "reccovery rate",
+			"avg complexity": "average complexity",
+			"average complexity": "average complexity",
+			"avg time to cure": "average time to cure",
+			"treatment efficiency (avg cure time)": "average time to cure",
+			"admissions (30d)": "admissions last 30 days",
+			"admissions last 30 days": "admissions last 30 days",
+			"chronic burden": "chronic burden",
+			"active burden": "active burden",
+			"total diagnoses": "total diagnoses",
+			"unique conditions": "unique conditions",
+			"clinical course": "clinical course",
+		};
+		const normalizedLabel = aliasMap[label.toLowerCase()] || label.toLowerCase();
+		const formatEntry = Object.entries(formats).find(([key]) => key.toLowerCase() === normalizedLabel);
+		return formatEntry ? formatEntry[1] : null;
+	};
+
+	const formatNumber = (value, formatString) => {
+		if (value === null || value === undefined) return "N/A";
+		if (typeof value !== "number") return value;
+		if (formatString === "{:.2}%") return `${value.toFixed(2)}%`;
+		if (formatString === "{:.0f} days") return `${Math.round(value)} days`;
+		if (formatString === "{:.0f} patients") return `${Math.round(value).toLocaleString()} patients`;
+		if (formatString === "{:.0f} conditions") return `${Math.round(value).toLocaleString()} conditions`;
+		if (formatString === "{:.0f} conditions/patient") return `${Math.round(value).toLocaleString()} conditions/patient`;
+		if (formatString === "{:.1f} new cases/day") return `${value.toFixed(1)} new cases/day`;
+		if (formatString === "{:.1f} encounters/day") return `${value.toFixed(1)} encounters/day`;
+		return value.toLocaleString();
+	};
+
+	const chartWidth = (count, minWidth = 900) => `${Math.max(minWidth, count * 120)}px`;
+	const chartHeight = (count, minHeight = 300) => `${Math.max(minHeight, count * 42)}px`;
+	const needsVerticalScroll = (count, threshold = 8) => count > threshold;
 
 	// --- Memoized Data (Basic Metrics - 6 Total) ---
 	const topDisorders = useMemo(() => transformList(data.metrics.top_disorder_conditions), [data]);
@@ -104,7 +150,6 @@ const ConditionsDashboard = () => {
 	const incidenceData = useMemo(() => {
 		if (!data.advanced_metrics.incidence_velocity) return { list: [], chartData: [] };
 		const allConditions = Object.keys(data.advanced_metrics.incidence_velocity);
-		if (allConditions.length > 0 && !selectedIncidence) setSelectedIncidence(allConditions[0]);
 		const filteredList = allConditions.filter(c => c.toLowerCase().includes(incidenceSearch.toLowerCase()));
 
 		let chartData = [];
@@ -115,6 +160,15 @@ const ConditionsDashboard = () => {
 		}
 		return { list: filteredList, chartData };
 	}, [data, selectedIncidence, incidenceSearch]);
+
+	useEffect(() => {
+		if (!selectedIncidence && data.advanced_metrics.incidence_velocity) {
+			const allConditions = Object.keys(data.advanced_metrics.incidence_velocity);
+			if (allConditions.length > 0) {
+				setSelectedIncidence(allConditions[0]);
+			}
+		}
+	}, [data.advanced_metrics.incidence_velocity, selectedIncidence]);
 
 	// Advanced 2: Recurrence Gap
 	const recurrenceGapData = useMemo(() => {
@@ -145,7 +199,8 @@ const ConditionsDashboard = () => {
 				borderWidth: 0,
 				shadowColor: 'rgba(0, 0, 0, 0.05)',
 				shadowBlur: 10,
-				textStyle: { color: '#334155', fontFamily: 'Inter, sans-serif', fontSize: 11 }
+				textStyle: { color: '#334155', fontFamily: 'Inter, sans-serif', fontSize: 11 },
+				valueFormatter: (value) => `${Number(value).toLocaleString()}`
 			},
 			grid: { left: '1%', right: '5%', bottom: '2%', top: '2%', containLabel: true },
 			xAxis: {
@@ -220,7 +275,8 @@ const ConditionsDashboard = () => {
 			borderWidth: 0,
 			shadowColor: 'rgba(0, 0, 0, 0.05)',
 			shadowBlur: 10,
-			textStyle: { color: '#334155', fontFamily: 'Inter, sans-serif', fontSize: 11 }
+			textStyle: { color: '#334155', fontFamily: 'Inter, sans-serif', fontSize: 11 },
+			valueFormatter: (value) => `${Number(value).toLocaleString()}`
 		},
 		grid: { left: '3%', right: '3%', bottom: '5%', top: '10%', containLabel: true },
 		xAxis: {
@@ -234,18 +290,18 @@ const ConditionsDashboard = () => {
 			type: 'value',
 			axisLine: { show: false },
 			axisTick: { show: false },
-			axisLabel: { color: '#94a3b8', fontSize: 10 },
+			axisLabel: { color: '#94a3b8', fontSize: 10, formatter: (value) => `${Number(value).toLocaleString()}` },
 			splitLine: { lineStyle: { type: 'dashed', color: '#f1f5f9' } }
 		},
-		series: [
-			{
-				name: 'Frequency',
-				type: 'bar',
-				barWidth: '40%',
-				data: comorbidityDistribution.map(d => d.value),
-				itemStyle: { color: '#6366f1', borderRadius: [4, 4, 0, 0] }
-			}
-		]
+			series: [
+				{
+					name: 'Frequency',
+					type: 'bar',
+					barWidth: '40%',
+					data: comorbidityDistribution.map(d => d.value),
+					itemStyle: { color: '#6366f1', borderRadius: [4, 4, 0, 0] }
+				}
+			]
 	}), [comorbidityDistribution]);
 
 	const incidenceVelocityOption = useMemo(() => {
@@ -258,7 +314,8 @@ const ConditionsDashboard = () => {
 				borderWidth: 0,
 				shadowColor: 'rgba(0, 0, 0, 0.05)',
 				shadowBlur: 10,
-				textStyle: { color: '#334155', fontFamily: 'Inter, sans-serif', fontSize: 11 }
+				textStyle: { color: '#334155', fontFamily: 'Inter, sans-serif', fontSize: 11 },
+				valueFormatter: (value) => `${Number(value).toLocaleString()}`
 			},
 			grid: { left: '3%', right: '3%', bottom: '5%', top: '10%', containLabel: true },
 			xAxis: {
@@ -272,7 +329,7 @@ const ConditionsDashboard = () => {
 				type: 'value',
 				axisLine: { show: false },
 				axisTick: { show: false },
-				axisLabel: { color: '#94a3b8', fontSize: 10 },
+				axisLabel: { color: '#94a3b8', fontSize: 10, formatter: (value) => `${Number(value).toLocaleString()}` },
 				splitLine: { lineStyle: { type: 'dashed', color: '#f1f5f9' } }
 			},
 			series: [
@@ -280,11 +337,12 @@ const ConditionsDashboard = () => {
 					name: 'Incidence',
 					type: 'line',
 					smooth: true,
+					showSymbol: true,
 					data: incidenceData.chartData.map(d => d.value),
 					itemStyle: { color: '#14b8a6' },
 					lineStyle: { width: 3 },
 					symbol: 'circle',
-					symbolSize: 8
+					symbolSize: 7
 				}
 			]
 		};
@@ -300,7 +358,8 @@ const ConditionsDashboard = () => {
 				borderWidth: 0,
 				shadowColor: 'rgba(0, 0, 0, 0.05)',
 				shadowBlur: 10,
-				textStyle: { color: '#334155', fontFamily: 'Inter, sans-serif', fontSize: 11 }
+				textStyle: { color: '#334155', fontFamily: 'Inter, sans-serif', fontSize: 11 },
+				valueFormatter: (value) => `${Math.round(Number(value))} days`
 			},
 			grid: { left: '1%', right: '5%', bottom: '2%', top: '2%', containLabel: true },
 			xAxis: { type: 'value', show: false },
@@ -324,28 +383,29 @@ const ConditionsDashboard = () => {
 	}, [recurrenceGapData]);
 
 	const ageBurdenOption = useMemo(() => ({
-		tooltip: {
-			trigger: 'axis',
-			backgroundColor: 'rgba(255, 255, 255, 0.95)',
-			borderRadius: 12,
-			borderWidth: 0,
-			shadowColor: 'rgba(0, 0, 0, 0.05)',
-			shadowBlur: 10,
-			textStyle: { color: '#334155', fontFamily: 'Inter, sans-serif', fontSize: 11 }
-		},
+			tooltip: {
+				trigger: 'axis',
+				backgroundColor: 'rgba(255, 255, 255, 0.95)',
+				borderRadius: 12,
+				borderWidth: 0,
+				shadowColor: 'rgba(0, 0, 0, 0.05)',
+				shadowBlur: 10,
+				textStyle: { color: '#334155', fontFamily: 'Inter, sans-serif', fontSize: 11 },
+				valueFormatter: (value) => `${Number(value).toLocaleString()} conditions/patient`
+			},
 		grid: { left: '3%', right: '3%', bottom: '5%', top: '10%', containLabel: true },
 		xAxis: {
 			type: 'category',
 			data: ageBurden.map(d => d.name),
 			axisLine: { show: false },
 			axisTick: { show: false },
-			axisLabel: { color: '#94a3b8', fontSize: 10 }
-		},
+				axisLabel: { color: '#94a3b8', fontSize: 10 }
+			},
 		yAxis: {
 			type: 'value',
 			axisLine: { show: false },
 			axisTick: { show: false },
-			axisLabel: { color: '#94a3b8', fontSize: 10 },
+			axisLabel: { color: '#94a3b8', fontSize: 10, formatter: (value) => `${Number(value).toLocaleString()}` },
 			splitLine: { lineStyle: { type: 'dashed', color: '#f1f5f9' } }
 		},
 		series: [
@@ -467,6 +527,11 @@ const ConditionsDashboard = () => {
 		},
 	];
 
+	const formattedKpiData = kpiData.map((kpi) => ({
+		...kpi,
+		format: resolveFormatString(data.formats, kpi.title)
+	}));
+
 	if (loading) {
 		return <LoadingScreen message="Loading Pathology Records..." subtext="Please wait while we gather the information." />;
 	}
@@ -475,46 +540,62 @@ const ConditionsDashboard = () => {
 		<div className="animate-fade-in w-full">
 			<div className="max-w-[1600px] mx-auto w-full px-4 md:px-6 lg:px-8 py-8 space-y-10 pb-10">
 
-				<KPICard kpis={kpiData} />
+				<KPICard kpis={formattedKpiData} />
 
 				{/* SECTION 1: STANDARD METRICS (6 Metrics, 2-Column Grid) */}
 				<div className="grid grid-cols-1 md:grid-cols-2 gap-8">
 					{/* Row 1 */}
 					<MetricsCard title="Top 10 Active Disorders" metrics={[]} chartData={topDisorders} chartType="bar">
-						<ReactECharts
-							option={getHorizontalBarOption(topDisorders, '#14b8a6', 'Active Cases')}
-							style={{ height: '450px', width: '100%' }}
-							opts={{ renderer: 'svg' }}
-						/>
+							<div className={`w-full ${needsVerticalScroll(topDisorders.length) ? 'overflow-y-auto overflow-x-hidden max-h-[520px]' : 'overflow-hidden'}`}>
+								<div style={needsVerticalScroll(topDisorders.length) ? { minHeight: chartHeight(topDisorders.length) } : {}}>
+								<ReactECharts
+									option={getHorizontalBarOption(topDisorders, '#14b8a6', 'Active Cases')}
+									style={{ height: '450px', width: '100%' }}
+									opts={{ renderer: 'svg' }}
+								/>
+							</div>
+						</div>
 					</MetricsCard>
 
 					<MetricsCard title="Top 10 Recurring" metrics={[]} chartData={recurring} chartType="bar">
-						<ReactECharts
-							option={getHorizontalBarOption(recurring, '#f43f5e', 'Relapses')}
-							style={{ height: '450px', width: '100%' }}
-							opts={{ renderer: 'svg' }}
-						/>
+							<div className={`w-full ${needsVerticalScroll(recurring.length) ? 'overflow-y-auto overflow-x-hidden max-h-[520px]' : 'overflow-hidden'}`}>
+								<div style={needsVerticalScroll(recurring.length) ? { minHeight: chartHeight(recurring.length) } : {}}>
+								<ReactECharts
+									option={getHorizontalBarOption(recurring, '#f43f5e', 'Relapses')}
+									style={{ height: '450px', width: '100%' }}
+									opts={{ renderer: 'svg' }}
+								/>
+							</div>
+						</div>
 					</MetricsCard>
 
 					{/* Row 2 */}
 					<MetricsCard title="Clinical Gravity (Severity)" metrics={[]} chartData={clinicalGravity} chartType="bar">
-						<ReactECharts
-							option={getHorizontalBarOption(clinicalGravity, '#8b5cf6', 'Gravity Score')}
-							style={{ height: '450px', width: '100%' }}
-							opts={{ renderer: 'svg' }}
-						/>
+							<div className={`w-full ${needsVerticalScroll(clinicalGravity.length) ? 'overflow-y-auto overflow-x-hidden max-h-[520px]' : 'overflow-hidden'}`}>
+								<div style={needsVerticalScroll(clinicalGravity.length) ? { minHeight: chartHeight(clinicalGravity.length) } : {}}>
+								<ReactECharts
+									option={getHorizontalBarOption(clinicalGravity, '#8b5cf6', 'Gravity Score')}
+									style={{ height: '450px', width: '100%' }}
+									opts={{ renderer: 'svg' }}
+								/>
+							</div>
+						</div>
 					</MetricsCard>
 
 					<MetricsCard title="Treatment Efficiency (Avg Cure Time)" metrics={[]} chartData={resolutionEfficiency} chartType="bar">
-						<ReactECharts
-							option={getHorizontalBarOption(resolutionEfficiency, '#d97706', 'Avg Days to Cure')}
-							style={{ height: '450px', width: '100%' }}
-							opts={{ renderer: 'svg' }}
-						/>
+							<div className={`w-full ${needsVerticalScroll(resolutionEfficiency.length) ? 'overflow-y-auto overflow-x-hidden max-h-[520px]' : 'overflow-hidden'}`}>
+								<div style={needsVerticalScroll(resolutionEfficiency.length) ? { minHeight: chartHeight(resolutionEfficiency.length) } : {}}>
+								<ReactECharts
+									option={getHorizontalBarOption(resolutionEfficiency, '#d97706', 'Avg Days to Cure')}
+									style={{ height: '450px', width: '100%' }}
+									opts={{ renderer: 'svg' }}
+								/>
+							</div>
+						</div>
 					</MetricsCard>
 
 					{/* Row 3 */}
-					<MetricsCard title="Clinical Course" metrics={[{ label: "Total", value: chronicVsAcute.reduce((a, c) => a + c.value, 0) }]} chartData={chronicVsAcute} chartType="pie">
+					<MetricsCard title="Clinical Course" metrics={[{ label: "Total", value: formatNumber(chronicVsAcute.reduce((a, c) => a + c.value, 0), resolveFormatString(data.formats, "Clinical Course")) }]} chartData={chronicVsAcute} chartType="pie">
 						<ReactECharts
 							option={clinicalCourseOption}
 							style={{ height: '300px', width: '100%' }}
@@ -523,11 +604,15 @@ const ConditionsDashboard = () => {
 					</MetricsCard>
 
 					<MetricsCard title="Comorbidity Distribution" metrics={[]} chartData={comorbidityDistribution} chartType="bar">
-						<ReactECharts
-							option={comorbidityDistributionOption}
-							style={{ height: '300px', width: '100%' }}
-							opts={{ renderer: 'svg' }}
-						/>
+						<div className={`w-full ${needsVerticalScroll(comorbidityDistribution.length, 10) ? 'overflow-y-auto overflow-x-hidden max-h-[360px]' : 'overflow-hidden'}`}>
+							<div style={needsVerticalScroll(comorbidityDistribution.length, 10) ? { minHeight: chartHeight(comorbidityDistribution.length) } : {}}>
+								<ReactECharts
+									option={comorbidityDistributionOption}
+									style={{ height: '300px', width: '100%' }}
+									opts={{ renderer: 'svg' }}
+								/>
+							</div>
+						</div>
 					</MetricsCard>
 				</div>
 
@@ -581,12 +666,14 @@ const ConditionsDashboard = () => {
 						</div>
 
 						<AdvancedChartCard title="Recurrence Gap" subtitle="Relapse Interval" icon={ClockIcon}>
-							<div className="h-[300px] w-full">
-								<ReactECharts
-									option={recurrenceGapOption}
-									style={{ height: '100%', width: '100%' }}
-									opts={{ renderer: 'svg' }}
-								/>
+							<div className={`w-full ${needsVerticalScroll(recurrenceGapData.length, 5) ? 'overflow-y-auto overflow-x-hidden h-[360px]' : 'overflow-hidden h-[300px]'}`}>
+								<div style={{ height: needsVerticalScroll(recurrenceGapData.length, 5) ? chartHeight(recurrenceGapData.length, 300) : '100%' }}>
+									<ReactECharts
+										option={recurrenceGapOption}
+										style={{ height: '100%', width: '100%' }}
+										opts={{ renderer: 'svg' }}
+									/>
+								</div>
 							</div>
 						</AdvancedChartCard>
 					</div>
@@ -594,11 +681,15 @@ const ConditionsDashboard = () => {
 					{/* Row 2: Age Burden, Comorbidity Pairs */}
 					<div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
 						<MetricsCard title="Age-Based Disease Burden" metrics={[]} chartData={ageBurden} chartType="bar">
-							<ReactECharts
-								option={ageBurdenOption}
-								style={{ height: '300px', width: '100%' }}
-								opts={{ renderer: 'svg' }}
-							/>
+							<div className={`w-full ${needsVerticalScroll(ageBurden.length, 10) ? 'overflow-y-auto overflow-x-hidden max-h-[360px]' : 'overflow-hidden'}`}>
+								<div style={needsVerticalScroll(ageBurden.length, 10) ? { minHeight: chartHeight(ageBurden.length, 300) } : {}}>
+									<ReactECharts
+										option={ageBurdenOption}
+										style={{ height: '300px', width: '100%' }}
+										opts={{ renderer: 'svg' }}
+									/>
+								</div>
+							</div>
 						</MetricsCard>
 
 						<div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">

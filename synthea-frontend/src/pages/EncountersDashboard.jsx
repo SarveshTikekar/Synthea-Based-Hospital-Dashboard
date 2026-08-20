@@ -15,7 +15,7 @@ import ReactECharts from 'echarts-for-react';
 const PIE_COLORS = ["#14b8a6", "#f43f5e", "#8b5cf6", "#f59e0b", "#3b82f6", "#64748b"];
 
 const EncountersDashboard = () => {
-    const [data, setData] = useState({ kpis: {}, metrics: {}, advanced_metrics: {} });
+    const [data, setData] = useState({ kpis: {}, metrics: {}, advanced_metrics: {}, formats: {} });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
@@ -27,7 +27,8 @@ const EncountersDashboard = () => {
                     setData({
                         kpis: result.encounters_dashboard.kpis || {},
                         metrics: result.encounters_dashboard.metrics || {},
-                        advanced_metrics: result.encounters_dashboard.advanced_metrics || {}
+                        advanced_metrics: result.encounters_dashboard.advanced_metrics || {},
+                        formats: result.formats || {}
                     });
                 } else {
                     setError("Failed to load encounters data.");
@@ -45,6 +46,37 @@ const EncountersDashboard = () => {
     const truncateLabel = (str, max = 15) => {
         if (!str) return "";
         return str.length > max ? `${str.substring(0, max)}...` : str;
+    };
+
+    const resolveFormatString = (formats, label) => {
+        if (!formats || !label) return null;
+        const aliasMap = {
+            "total volume (30d)": "total volume",
+            "unique pts (30d)": "unique patients",
+            "unique patients (30d)": "unique patients",
+            "avg duration": "average duration",
+            "avg practitioner load": "average practioner load",
+            "avg practitioner load (30d)": "average practioner load",
+            "avg base fee": "average base fee",
+            "total covered (ins)": "total insurance covered",
+            "patient out-of-pocket": "patient out-of-pocket",
+            "top 10 practitioners": "top 10 practioners",
+        };
+        const normalizedLabel = aliasMap[label.toLowerCase()] || label.toLowerCase();
+        const formatEntry = Object.entries(formats).find(([key]) => key.toLowerCase() === normalizedLabel);
+        return formatEntry ? formatEntry[1] : null;
+    };
+
+    const formatNumber = (value, formatString) => {
+        if (value === null || value === undefined) return "N/A";
+        if (typeof value !== "number") return value;
+        if (formatString === "{:.0f} encounters") return `${Math.round(value).toLocaleString()} encounters`;
+        if (formatString === "{:.0f} patients") return `${Math.round(value).toLocaleString()} patients`;
+        if (formatString === "${:,.2f}") return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        if (formatString === "{:.1f} hours") return `${value.toFixed(1)} hours`;
+        if (formatString === "{:.1f} encounters/day") return `${value.toFixed(1)} encounters/day`;
+        if (formatString === "{:,.2f} dollars / encounter") return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / encounter`;
+        return value.toLocaleString();
     };
 
     // --- Memoized Data (Basic Metrics - 6 Total) ---
@@ -114,7 +146,7 @@ const EncountersDashboard = () => {
             shadowColor: 'rgba(0, 0, 0, 0.05)',
             shadowBlur: 10,
             textStyle: { color: '#334155', fontFamily: 'Inter, sans-serif', fontSize: 11 },
-            valueFormatter: (val) => `$${Number(val).toFixed(2)}`
+            valueFormatter: (val) => formatNumber(val, "{:,.2f} dollars / encounter")
         },
         legend: {
             data: ['Base Fee', 'Total Fee'],
@@ -134,7 +166,7 @@ const EncountersDashboard = () => {
             type: 'value',
             axisLine: { show: false },
             axisTick: { show: false },
-            axisLabel: { color: '#64748b', fontSize: 11 },
+            axisLabel: { color: '#64748b', fontSize: 11, formatter: (value) => formatNumber(value, "${:,.2f}") },
             splitLine: { lineStyle: { type: 'dashed', color: '#f1f5f9' } }
         },
         series: [
@@ -198,7 +230,7 @@ const EncountersDashboard = () => {
             shadowColor: 'rgba(0, 0, 0, 0.05)',
             shadowBlur: 10,
             textStyle: { color: '#334155', fontFamily: 'Inter, sans-serif', fontSize: 11 },
-            valueFormatter: (value) => `$${Number(value).toFixed(2)}`
+            valueFormatter: (value) => formatNumber(value, "${:,.2f}")
         },
         grid: { left: '3%', right: '3%', bottom: '5%', top: '10%', containLabel: true },
         xAxis: {
@@ -213,7 +245,7 @@ const EncountersDashboard = () => {
             type: 'value',
             axisLine: { show: false },
             axisTick: { show: false },
-            axisLabel: { color: '#94a3b8', fontSize: 11, formatter: '${value}' },
+            axisLabel: { color: '#94a3b8', fontSize: 11, formatter: (value) => formatNumber(value, "${:,.2f}") },
             splitLine: { lineStyle: { type: 'dashed', color: '#f1f5f9' } }
         },
         series: [
@@ -315,7 +347,7 @@ const EncountersDashboard = () => {
                 shadowColor: 'rgba(0, 0, 0, 0.05)',
                 shadowBlur: 10,
                 textStyle: { color: '#334155', fontFamily: 'Inter, sans-serif', fontSize: 11 },
-                valueFormatter: (value) => `${Number(value).toFixed(2)} hrs`
+                valueFormatter: (value) => formatNumber(value, "{:.1f} hours")
             },
             grid: { left: '3%', right: '3%', bottom: '15%', top: '10%', containLabel: true },
             xAxis: {
@@ -329,7 +361,7 @@ const EncountersDashboard = () => {
                 type: 'value',
                 axisLine: { show: false },
                 axisTick: { show: false },
-                axisLabel: { color: '#94a3b8', fontSize: 11, formatter: '{value}h' },
+                axisLabel: { color: '#94a3b8', fontSize: 11, formatter: (value) => formatNumber(value, "{:.1f} hours") },
                 splitLine: { lineStyle: { type: 'dashed', color: '#f1f5f9' } }
             },
             series: [
@@ -463,6 +495,11 @@ const EncountersDashboard = () => {
         },
     ];
 
+    const formattedKpiData = kpiData.map((kpi) => ({
+        ...kpi,
+        format: resolveFormatString(data.formats, kpi.title)
+    }));
+
     if (error) {
         return (
             <div className="flex min-h-screen w-full bg-slate-50 items-center justify-center flex-col gap-4">
@@ -480,7 +517,7 @@ const EncountersDashboard = () => {
         <div className="animate-fade-in w-full">
             <div className="max-w-[1600px] mx-auto w-full px-4 md:px-6 lg:px-8 py-8 space-y-10 pb-10">
                 {/* Section 1: 8 KPIs */}
-                <KPICard kpis={kpiData} />
+                <KPICard kpis={formattedKpiData} />
 
                 {/* SECTION 2: 6 STANDARD GRAPHICAL METRICS */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">

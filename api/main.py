@@ -6,12 +6,15 @@ import subprocess
 from functools import wraps
 
 # Ensuring the project root is in sys.path
-project_root = os.getcwd()
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 from dotenv import load_dotenv
 load_dotenv(os.path.join(project_root, ".env"))
+
+# Fetch the formats
+from api.formats.formats import PATIENTS_FORMAT, ALLERGIES_FORMAT, ENCOUNTERS_FORMAT, CONDITIONS_FORMAT
 
 # --- Flask App Initialization ---
 app = Flask(__name__)
@@ -54,10 +57,6 @@ def fetch_metrics(supabase, entity_name):
         return None
 
 # --- ROUTES ---
-
-@app.route('/api/', methods=['GET'])
-def root():
-    return jsonify({'message': 'Welcome to SarvSynth API', 'status': 'OK'}), 200
 
 @app.route('/api/patients', methods=['GET'])
 @with_supabase
@@ -194,7 +193,8 @@ def patient_dashboard(supabase):
             'cultural_diversity': adv_metrics.get('cultural_diversity_trend', []),
             'mortality_rate': adv_metrics.get('mortality_rate_trend', [])
         },
-        'advanced_metrics': adv_metrics
+        'advanced_metrics': adv_metrics,
+        'formats': PATIENTS_FORMAT
     })
 
 @app.route('/api/conditions_dashboard', methods=['GET'])
@@ -209,7 +209,8 @@ def conditions_dashboard(supabase):
         'message': 'Data Loaded successfully',
         'kpis': metrics.get('kpis', {}),
         'metrics': metrics.get('metrics', {}),
-        'advanced_metrics': metrics.get('advanced_metrics', {})
+        'advanced_metrics': metrics.get('advanced_metrics', {}),
+        'formats': CONDITIONS_FORMAT
     })
 
 @app.route('/api/encounters_dashboard', methods=['GET'])
@@ -224,7 +225,8 @@ def encounters_dashboard(supabase):
         'message': 'Data Loaded successfully',
         'kpis': metrics.get('kpis', {}),
         'metrics': metrics.get('metrics', {}),
-        'advanced_metrics': metrics.get('advanced_metrics', {})
+        'advanced_metrics': metrics.get('advanced_metrics', {}),
+        'formats': ENCOUNTERS_FORMAT
     })
 
 @app.route('/api/allergy_dashboard', methods=['GET'])
@@ -239,7 +241,8 @@ def allergy_dashboard(supabase):
         'message': 'Data Loaded successfully',
         'kpis': metrics.get('kpis', {}),
         'metrics': metrics.get('metrics', {}),
-        'advanced_metrics': metrics.get('advanced_metrics', {})
+        'advanced_metrics': metrics.get('advanced_metrics', {}),
+        'formats': ALLERGIES_FORMAT
     })  
 
 @app.route('/api/geographic_dashboard', methods=['GET'])

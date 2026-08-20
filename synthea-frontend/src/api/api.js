@@ -27,7 +27,11 @@ export const patientDashboard = async () => {
 	try {
 		const resp = await axios.get(`${API_URL}/patient_dashboard`)
 		if (resp.status == 200)
-			return { ...resp.data, success: true }
+			return {
+				success: true,
+				...resp.data,
+				formats: resp.data?.formats || {},
+			}
 
 		return { message: 'Error in generation', reason: `${resp.status} --> ${resp.statusText}` }
 
@@ -42,7 +46,10 @@ export const conditionsDashboard = async () => {
 	try {
 		const resp = await axios.get(`${API_URL}/conditions_dashboard`)
 		if (resp.status == 200)
-			return { conditions_dashboard: resp.data }
+			return {
+				conditions_dashboard: resp.data,
+				formats: resp.data?.formats || {}
+			}
 
 		return { message: 'error in generation', reason: `${resp.status} --> ${resp.statusText}` }
 
@@ -70,7 +77,10 @@ export const encountersDashboard = async () => {
 	try {
 		const resp = await axios.get(`${API_URL}/encounters_dashboard`)
 		if (resp.status == 200)
-			return { encounters_dashboard: resp.data }
+			return {
+				encounters_dashboard: resp.data,
+				formats: resp.data?.formats || {}
+			}
 
 		return { message: 'error in generation', reason: `${resp.status} --> ${resp.statusText}` }
 
